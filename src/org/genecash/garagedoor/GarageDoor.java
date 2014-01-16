@@ -1,13 +1,13 @@
 package org.genecash.garagedoor;
 
 import java.net.InetAddress;
+import java.net.Socket;
 
 import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.nsd.NsdManager;
@@ -15,22 +15,22 @@ import android.net.nsd.NsdManager.DiscoveryListener;
 import android.net.nsd.NsdManager.ResolveListener;
 import android.net.nsd.NsdServiceInfo;
 import android.net.wifi.WifiManager;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.view.View;
 import android.view.View.OnClickListener;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 
 public class GarageDoor extends Activity {
-	private String networkName = "Kill All Atheists";
-	private String zeroconfService = "_ssh._tcp";
-	private String target = "raspberrypi";
+	private String zeroconfService = "_garagedoor._tcp";
 
 	private BroadcastReceiver broadcastReceiver;
 	private GarageDoor parent;
 	private NsdManager mNsdManager;
 	private DiscoveryListener mDiscoveryListener;
 	private ResolveListener mResolveListener;
+	private int port;
+	private InetAddress host;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -49,33 +49,15 @@ public class GarageDoor extends Activity {
 			@Override
 			public void onReceive(Context context, Intent intent) {
 				final String action = intent.getAction();
-				parent.message("onReceive");
 				if (action.equals(WifiManager.NETWORK_STATE_CHANGED_ACTION)) {
-					LinearLayout bg = (LinearLayout) parent.findViewById(R.id.background);
-					TextView fg = (TextView) parent.findViewById(R.id.msg);
 					NetworkInfo info = intent.getParcelableExtra(WifiManager.EXTRA_NETWORK_INFO);
 					if (info.isConnected()) {
 						// new connection
-						parent.message("new connection");
 						if (info.getType() == ConnectivityManager.TYPE_WIFI) {
-							parent.message("wi-fi");
-							// check wi-fi network name
-							parent.message(info.getExtraInfo());
-							if (info.getExtraInfo().equals("\"" + networkName + "\"")) {
-								// this is our home network
-								bg.setBackgroundColor(Color.WHITE);
-								fg.setTextColor(Color.BLACK);
-								// look for our host
-								mNsdManager.discoverServices(zeroconfService, NsdManager.PROTOCOL_DNS_SD, mDiscoveryListener);
-							}
+							// look for our host
+							mNsdManager.discoverServices(zeroconfService, NsdManager.PROTOCOL_DNS_SD, mDiscoveryListener);
 						}
-					} else {
-						// wifi connection was lost
-						parent.message("connection lost");
-						bg.setBackgroundColor(Color.BLACK);
-						fg.setTextColor(Color.WHITE);
 					}
-					parent.message("");
 				}
 			}
 		};
@@ -90,10 +72,11 @@ public class GarageDoor extends Activity {
 
 			@Override
 			public void onServiceResolved(NsdServiceInfo serviceInfo) {
-				parent.message("resolving: " + serviceInfo);
-				int port = serviceInfo.getPort();
-				InetAddress host = serviceInfo.getHost();
-				parent.message("resolved: " + host + " " + port);
+				// now we actually know who to ask to open the door
+				port = serviceInfo.getPort();
+				host = serviceInfo.getHost();
+				new OpenDoor().execute();
+				parent.finish();
 			}
 		};
 
@@ -101,25 +84,20 @@ public class GarageDoor extends Activity {
 		mDiscoveryListener = new NsdManager.DiscoveryListener() {
 			@Override
 			public void onDiscoveryStarted(String arg0) {
-				parent.message("discovery started: " + arg0);
 			}
 
 			@Override
 			public void onDiscoveryStopped(String serviceType) {
-				parent.message("service stopped: " + serviceType);
 			}
 
 			@Override
 			public void onServiceFound(NsdServiceInfo serviceInfo) {
-				parent.message("service found: " + serviceInfo);
-				if (serviceInfo.getServiceName().equals(target)) {
-					mNsdManager.resolveService(serviceInfo, mResolveListener);
-				}
+				// we found our service, now we need to resolve it to an IP address & port
+				mNsdManager.resolveService(serviceInfo, mResolveListener);
 			}
 
 			@Override
 			public void onServiceLost(NsdServiceInfo serviceInfo) {
-				parent.message("service lost: " + serviceInfo);
 			}
 
 			@Override
@@ -135,7 +113,6 @@ public class GarageDoor extends Activity {
 
 		// Kick off!!! Touch your battlefoot to the Pain Ellipsoid and let the cycle of violence begin anew!!!!!!
 		registerReceiver(broadcastReceiver, intentFilter);
-		message("started");
 
 		// set up exit button
 		findViewById(R.id.exit).setOnClickListener(new OnClickListener() {
@@ -143,6 +120,31 @@ public class GarageDoor extends Activity {
 				finish();
 			}
 		});
+	}
+
+	// request the garage door opening
+	class OpenDoor extends AsyncTask<Void, String, Integer> {
+		@Override
+		protected Integer doInBackground(Void... params) {
+			String line1 = "OPEN\n";
+
+			try {
+				Socket sock = new Socket(host, port);
+				sock.getOutputStream().write(line1.getBytes());
+				sock.close();
+			} catch (Exception e) {
+				publishProgress(e.getMessage());
+				return 1;
+			}
+
+			return 0;
+		}
+
+		// display exception message
+		@Override
+		protected void onProgressUpdate(String... values) {
+			parent.message(values[0]);
+		}
 	}
 
 	@Override
@@ -153,7 +155,7 @@ public class GarageDoor extends Activity {
 		super.onDestroy();
 	};
 
-	// BroadcastReceiver stuff happens in a different thread from the UI
+	// receiver & listener stuff happens in a different thread from the UI
 	public void message(final String msg) {
 		final TextView tv = (TextView) findViewById(R.id.msg);
 		tv.post(new Runnable() {
