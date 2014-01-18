@@ -3,7 +3,7 @@ android-raspberrypi-garagedoor
 
 Opening my garage door using wi-fi from my Android to a Raspberry Pi
 
-This was inspired by Brad Fitzpatrick's work that he started in 2008, and the fact that my Flash2Pass stopped working.
+This was inspired by Brad Fitzpatrick's work (http://brad.livejournal.com/2394220.html) that he started in 2008, and the fact that my Flash2Pass stopped working.
 
 You start the app on your Android phone, and when you drive home and connect to your personal wi-fi network, it asks the Raspberry Pi to open the garage door, so you can drive right in without fiddling with anything.
 
