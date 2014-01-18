@@ -9,7 +9,7 @@ You start the app on your Android phone, and when you drive home and connect to 
 
 It uses a Raspberry Pi with the PiFace I/O board and a wi-fi dongle. One of the PiFace relays is used to simulate a garage door pushbutton.
 
-It uses avahi/rendezvous/zeroconf/bonjour/nsd/whatever-the-hell-its-called-today to find the Raspberry-Pi on the network without giving it a static IP address. It advertises the "garagedoor" service.
+It uses Avahi/zeroconf/Rendezvous/Bonjour/IPv4LL/mDNS/DNS-SD/NSD/whatever-the-hell-its-called-today to find the Raspberry Pi on the network without giving it a static IP address. It advertises the "garagedoor" service.
 
 It uses inetd and a short Python script to avoid the need for a webserver, so it's light on resources. The Pi should be running Raspbian.
 
@@ -35,8 +35,16 @@ Escape character is '^]'.
 OPEN
 DONE
 Connection closed by foreign host.
-02:43:41 ~/raspberry_pi # 
+02:43:41 ~/raspberry_pi #
+
+If the garage door doesn't open, you should at least hear the relay click.
 
 Note that this requires avahi-daemon to be running on your Linux box to resolve "garagedoor.local", but this is usually the case with Debian and Ubuntu.
 
 I intend to add the ability to tell remotely if the garage door is open by using the camera or one of the digital inputs.
+
+I originally intended to use an Arduino, but a wi-fi shield was $85! The other killer factor was that all the I/O shields were kits.
+
+I thought all the Raspberry Pi buzz was just the usual internet hype, so I never really considered one, but for $35, it was too good to pass up. The MAKE Magazine microcontroller guide basically flat out said "out of the dozen boards in this roundup, this or the Arduino are your two good choices" and that was a deciding factor.
+
+It ended up being a full Debian machine not too far behind my previous generation desktop PC.
