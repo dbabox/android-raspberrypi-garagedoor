@@ -3,24 +3,27 @@ package org.genecash.garagedoor;
 /*
  * General logic:
  * 
- * User is out of range of home wi-fi, and starts program
+ * We acquire locks on the wi-fi to keep it running, and on the cpu to keep us running.
  * 
- * We acquire locks on the wi-fi to keep it running, and on the cpu to keep us running
+ * We register a callback to handle connecting to a network, and the results of network scans.
  * 
- * We register a callback to handle connecting to a network, and the results of network scans
+ * We start network service discovery to find the "garagedoor" service advertised by the Raspberry Pi.
  * 
- * We kick off a network scan
+ * If we do find the service we want, then we try to resolve it to an IP address and port.
  * 
- * When the scan finishes, our callback waits a short while and kicks off another network scan
- * 
- * If the scan results in finding and connecting to a network, we start network service discovery to find the "garagedoor" service
- * advertised by the Raspberry Pi. We stop the network scanning.
- * 
- * If we do find the service we want, then we try to resolve it to an IP address and port
- * 
- * If the resolution is successful, we connect to it, send the command to open the door, and look for the result. We stop the network
+ * If the resolution is successful, we connect to it, send the command to open the door, and look for the result. We stop any network
  * scanning.
+ * 
+ * Now we need to handle scanning for our wi-fi network:
+ * * If we're not connected to wi-fi, or we lose connection, we kick off a network scan.
+ * * When the scan finishes, if we're still not connected, we wait a short while and kick off another network scan.
+ * 
+ * This handles the case where we're already on our home network and we just want to open/close the garage door. We never start
+ * scanning for networks.
+ * It also handles the case where we connect to another wi-fi network, but it's not the home network and doesn't have the Raspberry Pi
+ * on it. We don't scan for networks until we leave that foreign network, but once we do, we start scanning.
  */
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
@@ -56,14 +59,16 @@ public class GarageDoor extends Activity {
 	private GarageDoor parent;
 	private NsdManager mNsdManager;
 	private WifiManager mWifiManager;
+	private ConnectivityManager mConnManager;
 	private DiscoveryListener mDiscoveryListener;
 	private ResolveListener mResolveListener;
 	private WifiLock wifiLock;
 	private WakeLock cpuLock;
+	private NetworkInfo mWifi;
 	private int port;
 	private InetAddress host;
+	private boolean debug = false;
 	private boolean opened = false;
-	private boolean silence = false;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -74,28 +79,23 @@ public class GarageDoor extends Activity {
 
 		mNsdManager = (NsdManager) this.getSystemService(Context.NSD_SERVICE);
 		mWifiManager = (WifiManager) this.getSystemService(Context.WIFI_SERVICE);
+		mConnManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
 
 		// this runs when the wi-fi connection state changes or scan results are available
 		broadcastReceiver = new BroadcastReceiver() {
 			@Override
 			public void onReceive(Context context, Intent intent) {
 				parent.message("onReceive");
-				if (silence) {
-					parent.message("silent");
-					return;
-				}
 				String action = intent.getAction();
 				if (action.equals(WifiManager.NETWORK_STATE_CHANGED_ACTION)) {
 					NetworkInfo info = intent.getParcelableExtra(WifiManager.EXTRA_NETWORK_INFO);
-					if (info.isConnected()) {
-						parent.message("isConnected");
+					if (!info.isConnected()) {
+						parent.message("!isConnected");
 						// new connection
 						if (info.getType() == ConnectivityManager.TYPE_WIFI) {
 							parent.message("TYPE_WIFI");
-							// must shut down or NSD doesn't work
-							silence = true;
-							// look for our host
-							mNsdManager.discoverServices(zeroconfService, NsdManager.PROTOCOL_DNS_SD, mDiscoveryListener);
+							// start scanning for networks
+							mWifiManager.startScan();
 						}
 					}
 				} else if (action.equals(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION)) {
@@ -107,8 +107,11 @@ public class GarageDoor extends Activity {
 					} catch (InterruptedException e) {
 					}
 					parent.message("startScan");
-					// kick off another scan
-					mWifiManager.startScan();
+					// kick off another scan if necessary
+					mWifi = mConnManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+					if (!mWifi.isConnected()) {
+						mWifiManager.startScan();
+					}
 				}
 			}
 		};
@@ -180,11 +183,14 @@ public class GarageDoor extends Activity {
 		cpuLock.acquire();
 		parent.message("cpuLock acquired");
 
+		// register for wi-fi network scan results
+		registerReceiver(broadcastReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
+
 		// register for wi-fi network state changes
 		registerReceiver(broadcastReceiver, new IntentFilter(WifiManager.NETWORK_STATE_CHANGED_ACTION));
 
-		// register for wi-fi network scan results
-		registerReceiver(broadcastReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
+		// start looking for the "garagedoor" service
+		mNsdManager.discoverServices(zeroconfService, NsdManager.PROTOCOL_DNS_SD, mDiscoveryListener);
 
 		// set up exit button
 		findViewById(R.id.exit).setOnClickListener(new OnClickListener() {
@@ -193,11 +199,14 @@ public class GarageDoor extends Activity {
 			}
 		});
 
-		// start the network scans
-		mWifiManager.startScan();
+		// start the network scans if necessary
+		mWifi = mConnManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+		if (!mWifi.isConnected()) {
+			mWifiManager.startScan();
+		}
 	}
 
-	// request the garage door opening
+	// request the garage door open/close
 	class OpenDoor extends AsyncTask<Void, String, Void> {
 		@Override
 		protected Void doInBackground(Void... params) {
@@ -205,12 +214,14 @@ public class GarageDoor extends Activity {
 			if (!opened) {
 				try {
 					publishProgress("TILT");
-					Socket sock = new Socket(host, port);
-					sock.getOutputStream().write(cmd.getBytes());
-					BufferedReader br = new BufferedReader(new InputStreamReader(sock.getInputStream(), "UTF8"));
-					opened = br.readLine().equals("DONE");
-					sock.close();
-					cleanShutdown();
+					if (!debug) {
+						Socket sock = new Socket(host, port);
+						sock.getOutputStream().write(cmd.getBytes());
+						BufferedReader br = new BufferedReader(new InputStreamReader(sock.getInputStream(), "UTF8"));
+						opened = br.readLine().equals("DONE");
+						sock.close();
+						cleanShutdown();
+					}
 				} catch (Exception e) {
 					publishProgress(e.getMessage());
 				}
@@ -236,6 +247,7 @@ public class GarageDoor extends Activity {
 		}
 	}
 
+	// no matter how we exit, we clean things up
 	@SuppressLint("Wakelock")
 	@Override
 	protected void onDestroy() {
