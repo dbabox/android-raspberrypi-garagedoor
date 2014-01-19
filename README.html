@@ -19,15 +19,24 @@
 
   <p>It uses inetd and a short Python script to avoid the need for a webserver, so it's light on resources. The Pi should be running Raspbian.</p>
 
-  <p>To set up the Raspberry Pi: (you'll need to do most of this as root, or use sudo)</p>
+  <p>To set up the Raspberry Pi:<br>(you'll need to do most of this as root, or use sudo)</p>
   <ol>
-    <li>Get the most current list of the latest Raspbian packages by running <code>apt-get update</code></li>
-    <li>Install the software packages you need by running <code>apt-get install avahi-daemon openbsd-inetd python-pifacedigitalio</code></li>
+    <li>Get the most current list of the latest Raspbian packages by running<br>
+      <code>apt-get update</code></li>
+    <li>Install the software packages you need by running<br>
+      <code>apt-get install avahi-daemon openbsd-inetd python-pifacedigitalio</code></li>
     <li>Copy the garagedoor.service file to /etc/avahi/services</li>
-    <li>Restart the daemon by running <code>/etc/init.d/avahi-daemon restart</code></li>
+    <li>Restart the daemon by running<br>
+      <code>/etc/init.d/avahi-daemon restart</code></li>
+    <li>Create the script user by running<br>
+      <code>adduser --system garagedoor</code></li>
     <li>Copy the garagedoor.py file to /usr/local/bin</li>
-    <li>Make it an executable script by running <code>chmod a+x garagedoor.py</code></li>
-    <li>Add the inetd entry by running <code>update-inetd --add '17000\tstream\ttcp\tnowait\troot\t/usr/local/bin/garagedoor.py'</code></li>
+    <li>Make it an executable script by running<br>
+      <code>chmod 500 garagedoor.py</code></li>
+    <li>Assign it to the script user by running<br>
+      <code>chown garagedoor.nogroup garagedoor.py</code></li>
+    <li>Add the inetd entry by running<br>
+      <code>update-inetd --add '17000\tstream\ttcp\twait\tgaragedoor\t/usr/local/bin/garagedoor.py'</code></li>
     <li>The garage door wires should be inserted in the two relay contacts nearest the jumper, and connected to where you need to connect switches on your
       opener.</li>
     <li>Install a wi-fi dongle as per the HOWTOs on the 'net. You will most probably need a powered USB hub for it, as most dongles are extremely power-hungry.</li>
@@ -49,9 +58,9 @@
   <p>I thought all the Raspberry Pi buzz was just the usual internet hype, so I never really considered one, but for $35, it was too good to pass up. The MAKE Magazine microcontroller guide basically flat out said "out of the dozen boards in this roundup, this or the Arduino are your two good choices" and that was a deciding factor.</p>
   <p>It ended up being a full Debian machine not too far behind my previous generation desktop PC.</p>
   <h3>To do:</h3>
-  <ol>
+  <ul>
     <li>Add the ability to tell remotely if the garage door is open or closed.</li>
-    <li>Add security.</li>
-  </ol>
+    <li>Add a function to close the door when the user goes away.</li>
+  </ul>
 </body>
 </html>

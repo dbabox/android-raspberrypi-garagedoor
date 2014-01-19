@@ -47,13 +47,16 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
+import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
-import android.widget.TextView;
 
 public class GarageDoor extends Activity {
+
 	// this is the service that the Raspberry Pi advertises
 	private String zeroconfService = "_garagedoor._tcp";
+
+	public static final String TAG = "GarageDoor";
 
 	private BroadcastReceiver broadcastReceiver;
 	private GarageDoor parent;
@@ -67,7 +70,7 @@ public class GarageDoor extends Activity {
 	private NetworkInfo mWifi;
 	private int port;
 	private InetAddress host;
-	private boolean debug = false;
+	private boolean debug = true;
 	private boolean opened = false;
 
 	@Override
@@ -75,7 +78,7 @@ public class GarageDoor extends Activity {
 		parent = this;
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
-		parent.message("onCreate");
+		Log.i(TAG, "onCreate");
 
 		mNsdManager = (NsdManager) this.getSystemService(Context.NSD_SERVICE);
 		mWifiManager = (WifiManager) this.getSystemService(Context.WIFI_SERVICE);
@@ -85,15 +88,15 @@ public class GarageDoor extends Activity {
 		broadcastReceiver = new BroadcastReceiver() {
 			@Override
 			public void onReceive(Context context, Intent intent) {
-				parent.message("onReceive");
+				Log.i(TAG, "onReceive");
 				String action = intent.getAction();
 				if (action.equals(WifiManager.NETWORK_STATE_CHANGED_ACTION)) {
 					NetworkInfo info = intent.getParcelableExtra(WifiManager.EXTRA_NETWORK_INFO);
 					if (!info.isConnected()) {
-						parent.message("!isConnected");
+						Log.i(TAG, "!isConnected");
 						// new connection
 						if (info.getType() == ConnectivityManager.TYPE_WIFI) {
-							parent.message("TYPE_WIFI");
+							Log.i(TAG, "TYPE_WIFI");
 							// start scanning for networks
 							mWifiManager.startScan();
 						}
@@ -106,7 +109,7 @@ public class GarageDoor extends Activity {
 						Thread.sleep(500);
 					} catch (InterruptedException e) {
 					}
-					parent.message("startScan");
+					Log.i(TAG, "startScan");
 					// kick off another scan if necessary
 					mWifi = mConnManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
 					if (!mWifi.isConnected()) {
@@ -120,18 +123,17 @@ public class GarageDoor extends Activity {
 		mResolveListener = new NsdManager.ResolveListener() {
 			@Override
 			public void onResolveFailed(NsdServiceInfo serviceInfo, int errorCode) {
-				parent.message("resolving: " + serviceInfo);
-				parent.message("resolution failed - error code: " + errorCode);
+				Log.e(TAG, "resolution failed - error code: " + errorCode + " - " + serviceInfo);
 			}
 
 			@Override
 			public void onServiceResolved(NsdServiceInfo serviceInfo) {
-				parent.message("onServiceResolved");
+				Log.i(TAG, "onServiceResolved: " + serviceInfo);
 				// now we actually know who to ask to open the door
 				host = serviceInfo.getHost();
 				port = serviceInfo.getPort();
 				new OpenDoor().execute();
-				// parent.finish();
+				parent.finish();
 			}
 		};
 
@@ -139,49 +141,51 @@ public class GarageDoor extends Activity {
 		mDiscoveryListener = new NsdManager.DiscoveryListener() {
 			@Override
 			public void onDiscoveryStarted(String arg0) {
-				parent.message("onDiscoveryStarted");
+				Log.i(TAG, "onDiscoveryStarted: " + arg0);
 			}
 
 			@Override
 			public void onDiscoveryStopped(String serviceType) {
-				parent.message("onDiscoveryStopped");
+				Log.i(TAG, "onDiscoveryStopped: " + serviceType);
 			}
 
 			@Override
 			public void onServiceFound(NsdServiceInfo serviceInfo) {
-				parent.message("onServiceFound");
+				Log.i(TAG, "onServiceFound: " + serviceInfo);
 				// we found our service, now we need to resolve it to an IP address & port
 				mNsdManager.resolveService(serviceInfo, mResolveListener);
 			}
 
 			@Override
 			public void onServiceLost(NsdServiceInfo serviceInfo) {
-				parent.message("onServiceLost");
+				Log.i(TAG, "onServiceLost: " + serviceInfo);
 			}
 
 			@Override
 			public void onStartDiscoveryFailed(String serviceType, int errorCode) {
-				parent.message("discovery failed - error code: " + errorCode);
+				Log.e(TAG, "discovery failed - error code: " + errorCode + " - " + serviceType);
+				mNsdManager.stopServiceDiscovery(this);
 			}
 
 			@Override
 			public void onStopDiscoveryFailed(String serviceType, int errorCode) {
-				parent.message("discovery failed - error code: " + errorCode);
+				Log.e(TAG, "discovery failed - error code: " + errorCode + " - " + serviceType);
+				mNsdManager.stopServiceDiscovery(this);
 			}
 		};
 
-		parent.message("Starting");
+		Log.i(TAG, "Starting");
 
 		// acquire a wi-fi lock that allows for scan event callbacks to happen
 		wifiLock = mWifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "GarageWifiLock");
 		wifiLock.acquire();
-		parent.message("wifiLock acquired");
+		Log.i(TAG, "wifiLock acquired");
 
 		// acquire cpu lock so we stay awake to do work
 		PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
 		cpuLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "GarageCPULock");
 		cpuLock.acquire();
-		parent.message("cpuLock acquired");
+		Log.i(TAG, "cpuLock acquired");
 
 		// register for wi-fi network scan results
 		registerReceiver(broadcastReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
@@ -210,40 +214,36 @@ public class GarageDoor extends Activity {
 	class OpenDoor extends AsyncTask<Void, String, Void> {
 		@Override
 		protected Void doInBackground(Void... params) {
-			String cmd = "OPEN\n";
+			String cmd = "TOGGLE\n";
 			if (!opened) {
 				try {
-					publishProgress("TILT");
+					Log.i(TAG, "TILT");
 					if (!debug) {
 						Socket sock = new Socket(host, port);
+						sock.setSoTimeout(1000);
 						sock.getOutputStream().write(cmd.getBytes());
 						BufferedReader br = new BufferedReader(new InputStreamReader(sock.getInputStream(), "UTF8"));
 						opened = br.readLine().equals("DONE");
+						Log.i(TAG, "opened: " + opened);
 						sock.close();
-						cleanShutdown();
 					}
+					cleanShutdown();
 				} catch (Exception e) {
-					publishProgress(e.getMessage());
+					Log.e(TAG, e.getStackTrace().toString());
 				}
 			}
 			return null;
 		}
-
-		// display exception message
-		@Override
-		protected void onProgressUpdate(String... values) {
-			parent.message(values[0]);
-		}
 	}
 
 	void cleanShutdown() {
-		if (broadcastReceiver != null) {
+		try {
 			unregisterReceiver(broadcastReceiver);
-			broadcastReceiver = null;
+		} catch (Exception e) {
 		}
-		if (mDiscoveryListener != null) {
+		try {
 			mNsdManager.stopServiceDiscovery(mDiscoveryListener);
-			mDiscoveryListener = null;
+		} catch (Exception e) {
 		}
 	}
 
@@ -251,7 +251,7 @@ public class GarageDoor extends Activity {
 	@SuppressLint("Wakelock")
 	@Override
 	protected void onDestroy() {
-		parent.message("onDestroy");
+		Log.i(TAG, "onDestroy");
 		if (cpuLock.isHeld()) {
 			cpuLock.release();
 		}
@@ -261,14 +261,4 @@ public class GarageDoor extends Activity {
 		cleanShutdown();
 		super.onDestroy();
 	};
-
-	// receiver & listener stuff happens in a different thread from the UI
-	public void message(final String msg) {
-		final TextView tv = (TextView) findViewById(R.id.msg);
-		tv.post(new Runnable() {
-			public void run() {
-				tv.setText(tv.getText() + msg + "\n");
-			}
-		});
-	}
 }
