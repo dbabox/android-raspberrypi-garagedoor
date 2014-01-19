@@ -1,0 +1,57 @@
+<html>
+<head>
+  <title>Readme for the Raspberry Pi garage door code</title>
+</head>
+<body>
+  <h1>Readme for the Raspberry Pi garage door code</h1>
+  <p>From the android-raspberrypi-garagedoor Git repository on GitHub</p>
+
+  <p>Opening my garage door using wi-fi from my Android to a Raspberry Pi</p>
+
+  <p>This was inspired by Brad Fitzpatrick's work (<a href="http://brad.livejournal.com/2394220.html" target="_blank">http://brad.livejournal.com/2394220.html</a>)
+    that he started in 2008, and the fact that my Flash2Pass stopped working.</p>
+
+  <p>You start the app on your Android phone, and when you drive home and connect to your personal wi-fi network, it asks the Raspberry Pi to open the garage
+    door, so you can drive right in without fiddling with anything.</p>
+  <p>It uses a Raspberry Pi with the PiFace I/O board and a wi-fi dongle. One of the PiFace relays is used to simulate a garage door pushbutton.</p>
+  <p>It uses Avahi/zeroconf/Rendezvous/Bonjour/IPv4LL/mDNS/DNS-SD/NSD/whatever-the-hell-its-called-today to find the Raspberry Pi on the network without giving
+    it a static IP address. It advertises the "garagedoor" service.</p>
+
+  <p>It uses inetd and a short Python script to avoid the need for a webserver, so it's light on resources. The Pi should be running Raspbian.</p>
+
+  <p>To set up the Raspberry Pi: (you'll need to do most of this as root, or use sudo)</p>
+  <ol>
+    <li>Get the most current list of the latest Raspbian packages by running <code>apt-get update</code></li>
+    <li>Install the software packages you need by running <code>apt-get install avahi-daemon openbsd-inetd python-pifacedigitalio</code></li>
+    <li>Copy the garagedoor.service file to /etc/avahi/services</li>
+    <li>Restart the daemon by running <code>/etc/init.d/avahi-daemon restart</code></li>
+    <li>Copy the garagedoor.py file to /usr/local/bin</li>
+    <li>Make it an executable script by running <code>chmod a+x garagedoor.py</code></li>
+    <li>Add the inetd entry by running <code>update-inetd --add '17000\tstream\ttcp\tnowait\troot\t/usr/local/bin/garagedoor.py'</code></li>
+    <li>The garage door wires should be inserted in the two relay contacts nearest the jumper, and connected to where you need to connect switches on your
+      opener.</li>
+    <li>Install a wi-fi dongle as per the HOWTOs on the 'net. You will most probably need a powered USB hub for it, as most dongles are extremely power-hungry.</li>
+  </ol>
+  <p>You should be able to open the garage door by telnetting to port 17000, typing "TOGGLE" and hitting enter.</p>
+  <code>
+    02:43:37 ~/raspberry_pi # telnet garagedoor.local 17000<br>
+    Trying 192.168.128.20...<br>
+    Connected to garagedoor.local.<br>
+    Escape character is '^]'.<br>
+    TOGGLE<br>
+    DONE<br>
+    Connection closed by foreign host.<br>
+    02:43:41 ~/raspberry_pi #<br>
+  </code>
+  <p>If the garage door doesn't open, you should at least hear the relay click. You should also see a line added to /var/log/syslog</p>
+  <p>Note that this requires avahi-daemon to be running on your Linux box to resolve "garagedoor.local", but this is usually the case with Debian and Ubuntu.</p>
+  <p>I originally intended to use an Arduino, but a wi-fi shield was $85! The other killer factor was that all the I/O shields were kits and I'm really crap at soldering.</p>
+  <p>I thought all the Raspberry Pi buzz was just the usual internet hype, so I never really considered one, but for $35, it was too good to pass up. The MAKE Magazine microcontroller guide basically flat out said "out of the dozen boards in this roundup, this or the Arduino are your two good choices" and that was a deciding factor.</p>
+  <p>It ended up being a full Debian machine not too far behind my previous generation desktop PC.</p>
+  <h3>To do:</h3>
+  <ol>
+    <li>Add the ability to tell remotely if the garage door is open or closed.</li>
+    <li>Add security.</li>
+  </ol>
+</body>
+</html>
