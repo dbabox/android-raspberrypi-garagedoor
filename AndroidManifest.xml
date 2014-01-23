@@ -17,6 +17,26 @@
         android:allowBackup="false"
         android:label="Garage Door">
         <activity
+            android:icon="@drawable/status_app"
+            android:name="GarageStatus"
+            android:label="Garage Status">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name="GarageAway"
+            android:icon="@drawable/close_app"
+            android:label="Garage Away"
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        
+        <activity
             android:windowSoftInputMode="stateHidden"
             android:name="Settings"
             android:label="Garage Door Settings"
@@ -36,6 +56,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        
         <service
             android:name="GarageDoorService"
             android:exported="false" />
