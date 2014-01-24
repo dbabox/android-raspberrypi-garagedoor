@@ -26,9 +26,9 @@ public class GarageAway extends Activity {
 		super.onCreate(savedInstanceState);
 
 		// pull host address & port from preferences
-		SharedPreferences sSettings = getSharedPreferences(Settings.PREFS_NAME, MODE_PRIVATE);
-		host = sSettings.getString(Settings.PREFS_HOST, "");
-		port = sSettings.getInt(Settings.PREFS_PORT, 0);
+		SharedPreferences sSettings = getSharedPreferences(GarageSettings.PREFS_NAME, MODE_PRIVATE);
+		host = sSettings.getString(GarageSettings.PREFS_HOST, "");
+		port = sSettings.getInt(GarageSettings.PREFS_PORT, 0);
 
 		new SetAway().execute();
 		finish();

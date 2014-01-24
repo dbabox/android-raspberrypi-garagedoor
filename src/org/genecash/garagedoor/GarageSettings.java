@@ -21,7 +21,7 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class Settings extends Activity {
+public class GarageSettings extends Activity {
 	// setting preferences
 	static final String PREFS_NAME = "GarageDoorPrefs";
 	static final String PREFS_HOST = "Host";

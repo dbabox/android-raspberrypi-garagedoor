@@ -40,8 +40,18 @@ if cmd == 'TOGGLE':
     output('DONE')
 elif cmd == 'STATUS':
     # report current state of door
-    syslog.syslog('Door state: UNKNOWN')
-    output('UNKNOWN')
+    # we do it this way so if things get in a weird state, we get notified
+    data=pifacedigital.input_port.value & 3
+    if data == 0:
+        state='TRANSIT'
+    elif data == 1:
+        state='CLOSED'
+    elif data == 2:
+        state='OPEN'
+    else:
+        state='UNKNOWN'
+    syslog.syslog('Door state: '+state)
+    output(state)
 elif cmd == 'AWAY':
     # wait until we lose contact and then close the door
     syslog.syslog('Away function waiting for loss of signal')

@@ -25,9 +25,9 @@ public class GarageStatus extends Activity {
 		setContentView(R.layout.status);
 
 		// pull host address & port from preferences
-		SharedPreferences sSettings = getSharedPreferences(Settings.PREFS_NAME, MODE_PRIVATE);
-		host = sSettings.getString(Settings.PREFS_HOST, "");
-		port = sSettings.getInt(Settings.PREFS_PORT, 0);
+		SharedPreferences sSettings = getSharedPreferences(GarageSettings.PREFS_NAME, MODE_PRIVATE);
+		host = sSettings.getString(GarageSettings.PREFS_HOST, "");
+		port = sSettings.getInt(GarageSettings.PREFS_PORT, 0);
 		String status = null;
 		AsyncTask<Void, String, String> task = new GetStatus().execute();
 		try {

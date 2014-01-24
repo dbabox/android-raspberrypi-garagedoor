@@ -2,8 +2,8 @@
 <manifest
     xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.genecash.garagedoor"
-    android:versionCode="1390024991"
-    android:versionName="18-JAN-2014 01:03:11 AM">
+    android:versionCode="1390543476"
+    android:versionName="24-JAN-2014 01:04:36 AM">
     <uses-sdk
         android:minSdkVersion="16"
         android:targetSdkVersion="18" />
@@ -13,13 +13,11 @@
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
-    <application
-        android:allowBackup="false"
-        android:label="Garage Door">
+    <application android:allowBackup="false">
         <activity
-            android:icon="@drawable/status_app"
             android:name="GarageStatus"
-            android:label="Garage Status">
+            android:label="Garage Status"
+            android:icon="@drawable/status_app">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -27,20 +25,19 @@
         </activity>
         <activity
             android:name="GarageAway"
-            android:icon="@drawable/close_app"
             android:label="Garage Away"
+            android:icon="@drawable/close_app"
             android:theme="@android:style/Theme.NoDisplay">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        
         <activity
-            android:windowSoftInputMode="stateHidden"
-            android:name="Settings"
+            android:name="GarageSettings"
             android:label="Garage Door Settings"
-            android:icon="@drawable/settings_app">
+            android:icon="@drawable/settings_app"
+            android:windowSoftInputMode="stateHidden">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -48,18 +45,16 @@
         </activity>
         <activity
             android:name="GarageDoor"
-            android:theme="@android:style/Theme.NoDisplay"
             android:label="Garage Door"
-            android:icon="@drawable/toggle_app">
+            android:icon="@drawable/toggle_app"
+            android:theme="@android:style/Theme.NoDisplay">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        
         <service
             android:name="GarageDoorService"
             android:exported="false" />
-        
     </application>
 </manifest>
