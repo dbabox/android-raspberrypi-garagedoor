@@ -144,7 +144,6 @@ public class GarageDoorService extends IntentService {
 					BufferedReader br = new BufferedReader(new InputStreamReader(sock.getInputStream(), "ASCII"));
 					if (br.readLine().equals("GARAGEDOOR")) {
 						sock.getOutputStream().write(cmd.getBytes());
-						done = br.readLine().equals("DONE");
 						Log.i(TAG, "opened");
 					}
 					sock.close();

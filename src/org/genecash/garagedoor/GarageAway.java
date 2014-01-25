@@ -7,16 +7,11 @@ import java.net.Socket;
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.net.wifi.WifiInfo;
-import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.text.format.Formatter;
 import android.widget.Toast;
 
 public class GarageAway extends Activity {
-	private static final String cmd = "AWAY\n";
-
 	private Context ctx = this;
 	private String host;
 	private int port;
@@ -38,18 +33,13 @@ public class GarageAway extends Activity {
 	class SetAway extends AsyncTask<Void, String, Void> {
 		@Override
 		protected Void doInBackground(Void... params) {
-			WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-			WifiInfo wifiInfo = wifiManager.getConnectionInfo();
-			int ip = wifiInfo.getIpAddress();
-			String ipAddress = Formatter.formatIpAddress(ip);
-
+			String cmd = "AWAY\n";
 			try {
 				Socket sock = new Socket(host, port);
 				sock.setSoTimeout(2000);
 				BufferedReader br = new BufferedReader(new InputStreamReader(sock.getInputStream(), "ASCII"));
 				if (br.readLine().equals("GARAGEDOOR")) {
 					sock.getOutputStream().write(cmd.getBytes());
-					sock.getOutputStream().write(ipAddress.getBytes());
 				}
 				sock.close();
 			} catch (Exception e) {

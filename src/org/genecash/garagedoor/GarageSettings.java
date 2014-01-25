@@ -181,21 +181,10 @@ public class GarageSettings extends Activity {
 
 	@Override
 	protected void onPause() {
-		cleanUp();
-		super.onPause();
-	}
-
-	@Override
-	protected void onDestroy() {
-		cleanUp();
-		super.onDestroy();
-	}
-
-	// clean up nicely
-	void cleanUp() {
 		try {
 			nsdManager.stopServiceDiscovery(discoveryListener);
 		} catch (Exception e) {
 		}
+		super.onPause();
 	}
 }
