@@ -145,6 +145,7 @@ public class GarageDoorService extends IntentService {
 					if (br.readLine().equals("GARAGEDOOR")) {
 						sock.getOutputStream().write(cmd.getBytes());
 						Log.i(TAG, "opened");
+						done = true;
 					}
 					sock.close();
 				} catch (java.net.ConnectException e) {

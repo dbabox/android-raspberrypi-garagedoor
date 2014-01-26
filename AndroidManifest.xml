@@ -15,9 +15,10 @@
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
     <application android:allowBackup="false">
         <activity
-            android:name="GarageStatus"
-            android:label="Garage Status"
-            android:icon="@drawable/status_app"
+            android:name="GarageSettings"
+            android:label="Garage Door Settings"
+            android:icon="@drawable/settings_app"
+            android:windowSoftInputMode="stateHidden"
             android:launchMode="singleInstance">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -25,10 +26,9 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="GarageSettings"
-            android:label="Garage Door Settings"
-            android:icon="@drawable/settings_app"
-            android:windowSoftInputMode="stateHidden"
+            android:name="GarageStatus"
+            android:label="Garage Status"
+            android:icon="@drawable/status_app"
             android:launchMode="singleInstance">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

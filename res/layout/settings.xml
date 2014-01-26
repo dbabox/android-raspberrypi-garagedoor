@@ -25,6 +25,21 @@
                 android:inputType="number"
                 android:singleLine="true" />
         </TableRow>
+        <TableRow>
+            <TextView
+                android:layout_gravity="right|center_vertical"
+                android:text="External IP:" />
+            <EditText
+                android:id="@+id/external"
+                android:inputType="text"
+                android:singleLine="true" />
+            <Button
+                android:id="@+id/fetch"
+                android:layout_span="2"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="Fetch" />
+        </TableRow>
     </TableLayout>
     <LinearLayout
         android:orientation="horizontal"
