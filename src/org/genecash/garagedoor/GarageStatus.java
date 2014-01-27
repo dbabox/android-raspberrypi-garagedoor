@@ -31,8 +31,8 @@ public class GarageStatus extends Activity {
 
 		// pull host address & port from preferences
 		SharedPreferences sSettings = getSharedPreferences(GarageSettings.PREFS_NAME, MODE_PRIVATE);
-		host = sSettings.getString(GarageSettings.PREFS_HOST, "");
-		port = sSettings.getInt(GarageSettings.PREFS_PORT, 0);
+		host = sSettings.getString(GarageSettings.PREFS_EXT_IP, "");
+		port = sSettings.getInt(GarageSettings.PREFS_EXT_PORT, 0);
 
 		btn = (ImageButton) findViewById(R.id.status);
 

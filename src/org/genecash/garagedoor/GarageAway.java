@@ -22,8 +22,8 @@ public class GarageAway extends Activity {
 
 		// pull host address & port from preferences
 		SharedPreferences sSettings = getSharedPreferences(GarageSettings.PREFS_NAME, MODE_PRIVATE);
-		host = sSettings.getString(GarageSettings.PREFS_HOST, "");
-		port = sSettings.getInt(GarageSettings.PREFS_PORT, 0);
+		host = sSettings.getString(GarageSettings.PREFS_LOCAL_IP, "");
+		port = sSettings.getInt(GarageSettings.PREFS_LOCAL_PORT, 0);
 
 		new SetAway().execute();
 		finish();
@@ -40,6 +40,13 @@ public class GarageAway extends Activity {
 				BufferedReader br = new BufferedReader(new InputStreamReader(sock.getInputStream(), "ASCII"));
 				if (br.readLine().equals("GARAGEDOOR")) {
 					sock.getOutputStream().write(cmd.getBytes());
+					String status = br.readLine();
+					if (status.equals("WAITING")) {
+						publishProgress("Away function ready");
+					}
+					if (status.equals("ABORTED")) {
+						publishProgress("Away function aborted");
+					}
 				}
 				sock.close();
 			} catch (Exception e) {

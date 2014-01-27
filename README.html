@@ -19,8 +19,9 @@
     <li>Get the most current list of the latest Raspbian packages by running<br>
       <code>apt-get update</code></li>
     <li>Install the software packages you need by running<br>
-      <code>apt-get install openbsd-inetd avahi-daemon python-pifacedigitalio</code></li>
+      <code>apt-get install openbsd-inetd avahi-daemon fail2ban stunnel python-pifacedigitalio</code></li>
     <li>Copy the garagedoor.service file to /etc/avahi/services</li>
+    <li>Copy the jail.local file to /etc/fail2ban</li>
     <li>Create the script user by running<br>
       <code>adduser --system garagedoor</code></li>
     <li>Add the script user to the proper groups (so he can see the PiFace devices) by running<br>
@@ -38,7 +39,23 @@
     <li>Install a wi-fi dongle as per the HOWTOs on the 'net. You will most probably need a powered USB hub for it, as most dongles are extremely power-hungry.</li>
     <li>Set up your router so that the Raspberry Pi gets a static IP. Somewhere it'll have a screen to say "this IP address is reserved for that MAC address"</li>
   </ol>
+  <h3>Setting up door sensors</h3>
+  <h3>Local network setup</h3>
+  <ul>
+    <li>Enable UPnP on your router. This allows the setup screen to simply ask it for the external IP address, instead of you having to manually trawl through
+      the router configuration webpages.</li>
+    <li>Assign the Rasperry Pi a reserved DHCP address.</li>
+    <li>Open a port.</li>
+  </ul>
+  <h3>Security and generating the SSL certificates</h3>
+  <p>Since the garage door needs to be secure, and you don't want just anybody on the internet opening it, it's protected by SSL. A certificate is installed on
+  the phone, and this is requested to authenticate it.</p>
+  <p>To generate the private key and certificate, run <code>openssl req -new -x509 -days 365 -nodes -out cert.pem -keyout cert.pem</code> and answer all the
+    questions.</p>
+  <p>To install the private key and certificate on the phone, run</p>
+  <p>fail2ban</p>
   <h3>Testing</h3>
+  <p>You need to install telnet-ssl on your desktop.</p>
   <p>You should be able to open the garage door by telnetting to port 17000, typing "TOGGLE" and hitting enter.</p>
   <code>
     02:43:37 ~/raspberry_pi # telnet garagedoor.local 17000<br>
@@ -60,6 +77,8 @@
     <li>We save this in application preferences.</li>
   </ul>
   <h3>General logic for the main app</h3>
+  <p>Originally the approach was to connect to the Raspberry Pi over wi-fi when we arrived home and connected. However, it takes forever to authorize and
+    connect, so what we do now is to connect over the cellular data network when our home wi-fi network appears in a scan.</p>
   <ul>
     <li>We acquire locks on the wi-fi to keep it running, and on the cpu to keep us running.</li>
     <li>We register a callback to handle connecting to a network, and the results of network scans.</li>

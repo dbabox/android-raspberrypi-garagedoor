@@ -13,10 +13,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
+import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.WifiLock;
+import android.os.AsyncTask;
 import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
 import android.util.Log;
@@ -24,14 +24,11 @@ import android.util.Log;
 public class GarageDoorService extends IntentService {
 	private static final int ONGOING_NOTIFICATION_ID = 1;
 	private static final String TAG = "GarageDoorService";
-	private static final String cmd = "TOGGLE\n";
 
 	private BroadcastReceiver broadcastReceiver;
 	private WifiManager wifiManager;
-	private ConnectivityManager connManager;
 	private WifiLock wifiLock;
 	private WakeLock cpuLock;
-	private NetworkInfo netInfo;
 
 	private boolean done = false;
 
@@ -39,6 +36,7 @@ public class GarageDoorService extends IntentService {
 	private Builder notifyBuilder;
 	private NotificationManager notificationManager;
 	private int ctrAttempts = 0;
+	private String network;
 	private String host;
 	private int port;
 
@@ -53,8 +51,9 @@ public class GarageDoorService extends IntentService {
 
 		// pull host address & port from preferences
 		SharedPreferences sSettings = getSharedPreferences(GarageSettings.PREFS_NAME, MODE_PRIVATE);
-		host = sSettings.getString(GarageSettings.PREFS_HOST, "");
-		port = sSettings.getInt(GarageSettings.PREFS_PORT, 0);
+		network = sSettings.getString(GarageSettings.PREFS_NETWORK, "");
+		host = sSettings.getString(GarageSettings.PREFS_EXT_IP, "");
+		port = sSettings.getInt(GarageSettings.PREFS_EXT_PORT, 0);
 
 		// start in foreground so we don't get killed
 		notifyBuilder =
@@ -64,39 +63,33 @@ public class GarageDoorService extends IntentService {
 		startForeground(ONGOING_NOTIFICATION_ID, notification);
 
 		wifiManager = (WifiManager) this.getSystemService(Context.WIFI_SERVICE);
-		connManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
 		notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
-		// this runs when the wi-fi connection state changes or scan results are available
+		// this runs when scan results are available
 		broadcastReceiver = new BroadcastReceiver() {
 			@Override
 			public void onReceive(Context context, Intent intent) {
 				Log.i(TAG, "onReceive");
 				String action = intent.getAction();
-				if (action.equals(WifiManager.NETWORK_STATE_CHANGED_ACTION)) {
-					netInfo = intent.getParcelableExtra(WifiManager.EXTRA_NETWORK_INFO);
-					if (!netInfo.isConnected()) {
-						Log.i(TAG, "!isConnected");
-						// new connection
-						if (netInfo.getType() == ConnectivityManager.TYPE_WIFI) {
-							Log.i(TAG, "TYPE_WIFI");
-							// start scanning for networks
-							wifiManager.startScan();
+				if (action.equals(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION)) {
+					for (ScanResult i : wifiManager.getScanResults()) {
+						if (i.SSID.equals(network)) {
+							// start trying to connect to the Raspberry Pi
+							notifyBuilder.setNumber(ctrAttempts++);
+							notificationManager.notify(ONGOING_NOTIFICATION_ID, notifyBuilder.build());
+							Log.i(TAG, "TILT");
+							done = true;
+							new OpenDoor().execute();
+							break;
 						}
 					}
-				} else if (action.equals(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION)) {
-					// scan is done... if we don't wait for the scan results, and start another scan before the last one finishes, then
-					// this receiver doesn't fire
-					try {
-						Thread.sleep(500);
-					} catch (InterruptedException e) {
-					}
-					// kick off another scan if necessary
-					netInfo = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
-					if (!netInfo.isConnected()) {
+					if (!done) {
+						try {
+							Thread.sleep(500);
+						} catch (InterruptedException e) {
+						}
+						// kick off another scan
 						Log.i(TAG, "startScan");
-						notifyBuilder.setNumber(++ctrAttempts);
-						notificationManager.notify(ONGOING_NOTIFICATION_ID, notifyBuilder.build());
 						wifiManager.startScan();
 					}
 				}
@@ -106,7 +99,7 @@ public class GarageDoorService extends IntentService {
 		Log.i(TAG, "Acquiring locks");
 
 		// acquire a wi-fi lock that allows for scan event callbacks to happen
-		wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "GarageWifiLock");
+		wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_SCAN_ONLY, "GarageWifiLock");
 		wifiLock.setReferenceCounted(true);
 		wifiLock.acquire();
 		Log.i(TAG, "wifiLock acquired");
@@ -121,40 +114,12 @@ public class GarageDoorService extends IntentService {
 		// register for wi-fi network scan results
 		registerReceiver(broadcastReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
 
-		// register for wi-fi network state changes
-		registerReceiver(broadcastReceiver, new IntentFilter(WifiManager.NETWORK_STATE_CHANGED_ACTION));
+		// start the network scans
+		Log.i(TAG, "initial startScan");
+		wifiManager.startScan();
 
-		// start the network scans if necessary
-		netInfo = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
-		if (!netInfo.isConnected()) {
-			Log.i(TAG, "initial startScan");
-			wifiManager.startScan();
-		}
-
-		// start trying to connect to the Raspberry Pi
+		// busy work
 		while (!done) {
-			netInfo = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
-			if (netInfo.isConnected()) {
-				notifyBuilder.setNumber(ctrAttempts++);
-				notificationManager.notify(ONGOING_NOTIFICATION_ID, notifyBuilder.build());
-				try {
-					Socket sock = new Socket(host, port);
-					Log.i(TAG, "TILT");
-					sock.setSoTimeout(2000);
-					BufferedReader br = new BufferedReader(new InputStreamReader(sock.getInputStream(), "ASCII"));
-					if (br.readLine().equals("GARAGEDOOR")) {
-						sock.getOutputStream().write(cmd.getBytes());
-						Log.i(TAG, "opened");
-						done = true;
-					}
-					sock.close();
-				} catch (java.net.ConnectException e) {
-					// ignore - this just means we didn't find it
-				} catch (Exception e) {
-					Log.e(TAG, e.getStackTrace().toString());
-				}
-			}
-
 			try {
 				Thread.sleep(500);
 			} catch (InterruptedException e) {
@@ -171,7 +136,7 @@ public class GarageDoorService extends IntentService {
 		if (wifiLock.isHeld()) {
 			wifiLock.release();
 		}
-		// must be done as the very last code
+		// must be done as the very last piece of code
 		if (cpuLock.isHeld()) {
 			cpuLock.release();
 		}
@@ -184,6 +149,27 @@ public class GarageDoorService extends IntentService {
 			unregisterReceiver(broadcastReceiver);
 			Log.i(TAG, "unregisterReceiver");
 		} catch (Exception e) {
+		}
+	}
+
+	// talk to the network in a separate thread
+	class OpenDoor extends AsyncTask<Void, String, Void> {
+		@Override
+		protected Void doInBackground(Void... params) {
+			String cmd = "TOGGLE\n";
+			try {
+				Socket sock = new Socket(host, port);
+				sock.setSoTimeout(2000);
+				BufferedReader br = new BufferedReader(new InputStreamReader(sock.getInputStream(), "ASCII"));
+				if (br.readLine().equals("GARAGEDOOR")) {
+					sock.getOutputStream().write(cmd.getBytes());
+					Log.i(TAG, "opened");
+				}
+				sock.close();
+			} catch (Exception e) {
+				Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
+			}
+			return null;
 		}
 	}
 }
