@@ -14,7 +14,7 @@ lockdir='/var/lock/'
 # toggle relay
 def press_button():
     syslog.syslog('Press button')
-    if os.path.exists('/tmp/ignore'):
+    if os.path.exists('/var/run/garage_door_disarmed'):
         return
     pifacedigital.relays[0].turn_on()
     time.sleep(0.2)
@@ -49,7 +49,7 @@ client=socket.fromfd(0, socket.AF_INET, socket.SOCK_STREAM)
 addr=client.getpeername()[0]
 syslog.syslog('Connect: '+addr)
 
-# identify ourselves
+# ready for command
 output('GARAGEDOOR')
 
 # process command
@@ -87,9 +87,10 @@ elif cmd == 'STATUS':
         time.sleep(0.5)
 elif cmd == 'AWAY':
     # wait until we lose contact and then close the door
-    # check for "abort" file
+    # check for "lock" file to see if the "away" function is in progress in another instance of the script
     lockfile='garagedoor-'+addr+'.lock'
     if os.path.exists(lockdir+lockfile):
+        # when we remove it, the other instance will exit
         syslog.syslog('Removing lockfile')
         os.remove(lockdir+lockfile)
         output('ABORTED')

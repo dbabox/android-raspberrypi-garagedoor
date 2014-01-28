@@ -1,0 +1,13 @@
+I ride a motorcycle, and garage door remotes don't last very long out in the elements, even if you can find a good place to mount one on your bike and you're willing to put up with the hassle.
+
+This system automatically opens the garage door when we come home. The user only has to remember to start the Android app before riding home. When you arrive home and it sees your personal wi-fi network, it asks the Raspberry Pi to open the garage door so you can drive right in without fiddling with anything.
+
+It was inspired by Brad Fitzpatrick's work (http://brad.livejournal.com/2394220.html) that he started in 2008, and the fact that my Flash2Pass stopped working.
+
+It uses a Raspberry Pi with the PiFace I/O board and a wi-fi dongle. It uses inetd and a short Python script to avoid the need for a webserver, so it's light on resources. The Pi should be running Raspbian.
+
+Originally the approach was to connect to the Raspberry Pi over our home wi-fi. However, it takes forever to authorize and connect to the wi-fi network using WPA2, so what we do now is to connect over the cellular data network when our wi-fi network appears in a scan. The app is smart enough to turn the data connection on and off as necessary.
+
+When we're getting ready to leave, there is an "away" app that opens the garage door for us, and then when we're out of wi-fi range the Raspberry Pi automatically closes the door. If you change your mind, just run the app again to cancel it.
+
+You can also check the status of the garage door remotely, so you can know it's closed.

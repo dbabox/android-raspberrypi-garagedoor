@@ -77,8 +77,6 @@ public class GarageDoorService extends IntentService {
 		port = sSettings.getInt(GarageSettings.PREFS_EXT_PORT, 0);
 		data = sSettings.getBoolean(GarageSettings.PREFS_DATA, false);
 
-		wifiManager = (WifiManager) this.getSystemService(Context.WIFI_SERVICE);
-
 		// set up the ability to test/set data connection
 		// since we're not really allowed to use this, we've got to use reflection to dig it out
 		try {
@@ -98,6 +96,8 @@ public class GarageDoorService extends IntentService {
 		} catch (Exception e) {
 			data = false;
 		}
+
+		wifiManager = (WifiManager) this.getSystemService(Context.WIFI_SERVICE);
 
 		// this runs when scan results are available, or the notification gets clicked
 		broadcastReceiver = new BroadcastReceiver() {
@@ -192,7 +192,7 @@ public class GarageDoorService extends IntentService {
 	class OpenDoor extends AsyncTask<Void, String, Void> {
 		@Override
 		protected Void doInBackground(Void... params) {
-			String cmd = "TOGGLE\n";
+			String cmd = "OPEN\n";
 			try {
 				Socket sock = new Socket(host, port);
 				sock.setSoTimeout(2000);

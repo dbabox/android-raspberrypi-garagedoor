@@ -1,123 +1,106 @@
 <html>
-<head>
-  <title>Readme for the Raspberry Pi garage door code</title>
-</head>
-<body>
-  <h1>Readme for the Raspberry Pi garage door code</h1>
-  <p>From the android-raspberrypi-garagedoor Git repository on GitHub</p>
-  <p>Opening my garage door using wi-fi from my Android to a Raspberry Pi</p>
-  <p>This was inspired by Brad Fitzpatrick's work (<a href="http://brad.livejournal.com/2394220.html" target="_blank">http://brad.livejournal.com/2394220.html</a>)
-    that he started in 2008, and the fact that my Flash2Pass stopped working.</p>
-  <p>You start the app on your Android phone, and when you drive home and connect to your personal wi-fi network, it asks the Raspberry Pi to open the garage
-    door, so you can drive right in without fiddling with anything.</p>
-  <p>It uses a Raspberry Pi with the PiFace I/O board and a wi-fi dongle. One of the PiFace relays is used to simulate a garage door pushbutton.</p>
-  <p>It uses inetd and a short Python script to avoid the need for a webserver, so it's light on resources. The Pi should be running Raspbian.</p>
-  <h3>To set up the Raspberry Pi:</h3>
-  <p>(you'll need to do most of this as root, or use sudo)</p>
-  <ol>
-    <li>Change the hostname to "garagedoor" in raspi-config</li>
-    <li>Get the most current list of the latest Raspbian packages by running<br>
-      <code>apt-get update</code></li>
-    <li>Install the software packages you need by running<br>
-      <code>apt-get install openbsd-inetd avahi-daemon fail2ban stunnel python-pifacedigitalio</code></li>
-    <li>Copy the garagedoor.service file to /etc/avahi/services</li>
-    <li>Copy the jail.local file to /etc/fail2ban</li>
-    <li>Create the script user by running<br>
-      <code>adduser --system garagedoor</code></li>
-    <li>Add the script user to the proper groups (so he can see the PiFace devices) by running<br>
-      <code>adduser garagedoor spi</code><br>
-      <code>adduser garagedoor gpio</code></li>
-    <li>Copy the garagedoor.py file to /usr/local/bin</li>
-    <li>Make it an executable script by running<br>
-      <code>chmod 500 /usr/local/bin/garagedoor.py</code></li>
-    <li>Assign it to the script user by running<br>
-      <code>chown garagedoor.nogroup /usr/local/bin/garagedoor.py</code></li>
-    <li>Add the inetd entry by running<br>
-      <code>update-inetd --add '17000\tstream\ttcp\tnowait\tgaragedoor\t/usr/local/bin/garagedoor.py'</code></li>
-    <li>The garage door wires should be inserted in the two relay contacts nearest the jumper, and connected to where you need to connect switches on your
-      opener.</li>
-    <li>Install a wi-fi dongle as per the HOWTOs on the 'net. You will most probably need a powered USB hub for it, as most dongles are extremely power-hungry.</li>
-    <li>Set up your router so that the Raspberry Pi gets a static IP. Somewhere it'll have a screen to say "this IP address is reserved for that MAC address"</li>
-  </ol>
-  <h3>Setting up door sensors</h3>
-  <h3>Local network setup</h3>
-  <ul>
-    <li>Enable UPnP on your router. This allows the setup screen to simply ask it for the external IP address, instead of you having to manually trawl through
-      the router configuration webpages.</li>
-    <li>Assign the Rasperry Pi a reserved DHCP address.</li>
-    <li>Open a port.</li>
-  </ul>
-  <h3>Security and generating the SSL certificates</h3>
-  <p>Since the garage door needs to be secure, and you don't want just anybody on the internet opening it, it's protected by SSL. A certificate is installed on
-  the phone, and this is requested to authenticate it.</p>
-  <p>To generate the private key and certificate, run <code>openssl req -new -x509 -days 365 -nodes -out cert.pem -keyout cert.pem</code> and answer all the
-    questions.</p>
-  <p>To install the private key and certificate on the phone, run</p>
-  <p>fail2ban</p>
-  <h3>Testing</h3>
-  <p>You need to install telnet-ssl on your desktop.</p>
-  <p>You should be able to open the garage door by telnetting to port 17000, typing "TOGGLE" and hitting enter.</p>
-  <code>
-    02:43:37 ~/raspberry_pi # telnet garagedoor.local 17000<br>
-    Trying 192.168.128.20...<br>
-    Connected to garagedoor.local.<br>
-    Escape character is '^]'.<br>
-    GARAGEDOOR<br>
-    TOGGLE<br>
-    DONE<br>
-    Connection closed by foreign host.<br>
-    02:43:41 ~/raspberry_pi #<br>
-  </code>
-  <p>If the garage door doesn't open, you should at least hear the relay click. You should also see a line added to /var/log/syslog</p>
-  <p>Note that this requires avahi-daemon to be running on your Linux box to resolve "garagedoor.local", but this is usually the case with Debian and Ubuntu.</p>
-  <h3>General logic for the setup screen</h3>
-  <ul>
-    <li>The Raspberry Pi runs avahi-daemon to advertise a "garagedoor" zeroconf service.</li>
-    <li>When the user presses "update" we discover this service and resolve the IP address and port.</li>
-    <li>We save this in application preferences.</li>
-  </ul>
-  <p>This uses UPNPLib-mobile created by "suggam", which in turn is a port of the abandoned UPNPLib project developed by "sbbi". Grateful thanks to whoever
-    these guys are.</p>
-  <h3>General logic for the main app</h3>
-  <p>Originally the approach was to connect to the Raspberry Pi over wi-fi when we arrived home and connected. However, it takes forever to authorize and
-    connect, so what we do now is to connect over the cellular data network when our home wi-fi network appears in a scan.</p>
-  <ul>
-    <li>We acquire locks on the wi-fi to keep it running, and on the cpu to keep us running.</li>
-    <li>We register a callback to handle connecting to a network, and the results of network scans.</li>
-    <li>Now we need to handle scanning for our wi-fi network:
-      <ul>
-        <li>If we're not connected to wi-fi, or we lose connection, we kick off a network scan.</li>
-        <li>When the scan finishes, if we're still not connected, we wait a short while and kick off another network scan.</li>
-      </ul>
-    </li>
-    <li>This handles these cases:
-      <ul>
-        <li>We're already on our home network and we just want to open/close the garage door. We never start scanning for networks.</li>
-        <li>We connect to another wi-fi network, but it's not the home network and doesn't have the Raspberry Pi on it. We don't scan for
-        <li>networks until we leave that foreign network, but once we do, we start scanning.</li>
-        <li>Wi-fi is turned off. We start a scan, but nothing happens until wi-fi is turned back on, and then it scans and we get results.</li>
-      </ul>
-    </li>
-    <li>All this happens in callbacks, so we don't need to do anything except continuously try to connect to the static IP.</li>
-  </ul>
-  <h3>General logic for the "away" app</h3>
-  <ul>
-    <li>We tell the Raspberry Pi our IP address.</li>
-    <li>It starts pinging that address.</li>
-    <li>When it can't ping the address, it closes the garage door.</li>
-  </ul>
-  <h3>General logic for the door status app</h3>
-  <ul>
-    <li>It uses microswitches and the intarwaebz and stuff!</li>
-  </ul>
-  <h3>Other notes</h3>
-  <p>I originally intended to use an Arduino, but a wi-fi shield was $85! The other killer factor was that all the I/O shields were kits and I'm really crap at soldering.</p>
-  <p>I thought all the Raspberry Pi buzz was just the usual internet hype, so I never really considered one, but for $35, it was too good to pass up. The MAKE
-    Magazine microcontroller guide basically flat out said "out of the dozen boards in this roundup, this or the Arduino are your two good choices" and that was
-    a deciding factor.</p>
-  <p>It ended up being a full Debian machine not too far behind my previous generation desktop PC.</p>
-  <p>I tried to use Avahi/zeroconf/Rendezvous/Bonjour/IPv4LL/mDNS/DNS-SD/NSD/whatever-the-hell-its-called-today to find the Raspberry Pi on the network without
-    giving it a static IP address. Unfortunately, when an Android device shuts off the screen and goes to sleep, it loses the ability to receive wi-fi multicast
-    packets, meaning zeroconf advertisements are not visible. I do still use it to painlessly fetch the network information for a setup screen.</p>
-</body>
+  <head>
+    <title>Hands-free garage door operation using a Raspberry Pi and an Android phone</title>
+    <style type="text/css">
+      li { margin-bottom: 8px; }
+    </style>
+  </head>
+  <body>
+    <h1>Hands-free garage door operation using a Raspberry Pi and an Android phone</h1>
+    <p>From the <a href="https://github.com/CrashCash/android-raspberrypi-garagedoor" target="_blank">android-raspberrypi-garagedoor</a> Git repository on
+      GitHub</p>
+    <p>I ride a motorcycle, and garage door remotes don't last very long out in the elements, even if you can find a good place to mount one on your bike and
+      you're willing to put up with the hassle.</p>
+    <p>This system automatically opens the garage door when we come home. The user only has to remember to start the Android app before riding home. When you
+      arrive home and it sees your personal wi-fi network, it asks the Raspberry Pi to open the garage door so you can drive right in without fiddling with
+      anything.</p>
+    <p>It was inspired by Brad Fitzpatrick's work (<a href="http://brad.livejournal.com/2394220.html" target="_blank">http://brad.livejournal.com/2394220.html</a>)
+      that he started in 2008, and the fact that my Flash2Pass stopped working.</p>
+    <p>It uses a Raspberry Pi with the <a href="http://www.piface.org.uk/products/piface_digital/" target="_blank">PiFace I/O board</a> and a wi-fi dongle. It
+      uses inetd and a short Python script to avoid the need for a webserver, so it's light on resources. The Pi should be running Raspbian.</p>
+    <p>Originally the approach was to connect to the Raspberry Pi over our home wi-fi. However, it takes <i>forever</i> to authorize and connect to the wi-fi
+      network using WPA2, so what we do now is to connect over the cellular data network when our wi-fi network appears in a scan. The app is smart enough to turn
+      the data connection on and off as necessary.</p>
+    <p>When we're getting ready to leave, there is an "away" app that opens the garage door for us, and then when we're out of wi-fi range the Raspberry Pi
+      automatically closes the door. If you change your mind, just run the app again to cancel it.</p>
+    <p>You can also check the status of the garage door remotely, so you can know it's closed.</p>
+    <h3>To quickly set up the Raspberry Pi:</h3>
+    <p>(you'll need to do most of this as root, or use sudo)</p>
+    <ol>
+      <li>Change the hostname to "garagedoor" in raspi-config</li>
+      <li>Get the most current list of the latest Raspbian packages by running<br>
+        <code>apt-get update</code></li>
+      <li>Install the software packages you need by running<br>
+        <code>apt-get install openbsd-inetd avahi-daemon fail2ban stunnel python-pifacedigitalio</code></li>
+      <li>Copy the garagedoor.service file to /etc/avahi/services</li>
+      <li>Copy the jail.local file to /etc/fail2ban</li>
+      <li>Create the script user by running<br>
+        <code>adduser --system garagedoor</code></li>
+      <li>Add the script user to the proper groups (so he can see the PiFace devices) by running<br>
+        <code>adduser garagedoor spi</code><br>
+        <code>adduser garagedoor gpio</code></li>
+      <li>Copy the garagedoor.py file to /usr/local/bin</li>
+      <li>Make it an executable script by running<br>
+        <code>chmod 500 /usr/local/bin/garagedoor.py</code></li>
+      <li>Assign it to the script user by running<br>
+        <code>chown garagedoor.nogroup /usr/local/bin/garagedoor.py</code></li>
+      <li>Add the inetd entry by running<br>
+        <code>update-inetd --add '17000\tstream\ttcp\tnowait\tgaragedoor\t/usr/local/bin/garagedoor.py'</code></li>
+      <li>Install a wi-fi dongle as per the HOWTOs on the 'net, like
+        <a href="https://learn.sparkfun.com/tutorials/using-pcduinos-wifi-dongle-with-the-pi" target="_blank">this one from SparkFun</a>. You will most probably
+        need a powered USB hub for it, as most dongles are extremely power-hungry.</li>
+    </ol>
+    <h3>Local network setup</h3>
+    <ul>
+      <li>Enable UPnP on your router. This allows the setup app to simply ask it for the external IP address, so you don't have to manually trawl through the
+        router configuration webpages.</li>
+      <li>Assign the Rasperry Pi a reserved DHCP address. Somewhere your router will have a screen to say "this IP address is reserved for that MAC
+        address". The Raspberry Pi runs avahi-daemon to advertise a "garagedoor" zeroconf service. This means the setup app can run zeroconf to discover it, and
+        find its address and port.</li>
+      <li>Open a port in the firewall and forward it to the Rasperry Pi's address and port 17000. This enables the phone to connect over the internet. It also
+        lets skript kiddiez and crackers in, so we use SSL authentication and encryption for security. We also run fail2ban to ignore anyone that isn't
+        authorized.</li>
+    </ul>
+    <h3>Setting up the ability to open/close the garage door</h3>
+    <p>One of the relays on the PiFace board is connected to the opener simulating a button. You can connect it in parallel with the real pushbuttons.</p>
+    <p>The garage door wires should be inserted in the two relay contacts nearest the jumper, and connected to where you need to connect switches on your opener.</p>
+    <h3>Setting up the ability to sense if the door is opened or closed</h3>
+    <p>Reed switches are small devices that close a contact when a magnet is brought near. I mounted two of them on the garage opener rail, and placed magnets
+      on the rail slider, so that the reed switches activate when the slider reaches the open or closed positions. These reed switches are connected to the
+      digital inputs on the PiFace board. I used <a href="http://mouser.com/" target="_blank">Mouser Electronics</a> part 507-AMS-9G which are AMSECO 505-90G
+      devices.</p>
+    <p>The switch wires should be inserted ?how?</p>
+    <h3>Security and generating the SSL certificates</h3>
+    <p>Since the garage door needs to be secure, and you don't want just anybody on the internet opening it, it's protected by SSL. A certificate is installed
+      on the phone, and this is requested to authenticate it.</p>
+    <p>To generate the private key and certificate, run <code>openssl req -new -x509 -days 365 -nodes -out cert.pem -keyout cert.pem</code> and answer all the
+      questions.</p>
+    <p>To install the private key and certificate on the phone, run</p>
+    <h3>Testing</h3>
+    <p>You need to install telnet-ssl on your desktop.</p>
+    <p>You should be able to open the garage door by telnetting to port 17000, typing "TOGGLE" and hitting enter.</p>
+    <code>
+      02:43:37 ~/raspberry_pi # telnet garagedoor.local 17000<br>
+      Trying 192.168.128.20...<br>
+      Connected to garagedoor.local.<br>
+      Escape character is '^]'.<br>
+      GARAGEDOOR<br>
+      TOGGLE<br>
+      DONE<br>
+      Connection closed by foreign host.<br>
+      02:43:41 ~/raspberry_pi #<br>
+    </code>
+    <p>If the garage door doesn't open, you should at least hear the relay click. You should also see a line added to /var/log/syslog</p>
+    <p>Note that this requires avahi-daemon to be running on your Linux box to resolve "garagedoor.local", but this is usually the case with Debian and
+      Ubuntu. You can also telnet directly to the static IP address.</p>
+    <h3>Other notes</h3>
+    <p>I originally intended to use an Arduino, but a wi-fi shield was $85! The other killer factor was that all the I/O shields were kits and I'm really crap
+      at soldering.</p>
+    <p>I thought all the Raspberry Pi buzz was just the usual internet hype, so I never really considered one, but for $35, it was too good to pass up. The
+      <a href="http://makezine.com" target="_blank"><i>MAKE Magazine</i></a> microcontroller guide basically flat out said "out of the dozen boards in this
+      roundup, this or the Arduino are your two good choices" and that was a deciding factor.</p>
+    <p>It's amazing that it's a full Debian machine not too far behind my previous generation desktop PC.</p>
+    <p>The setup app uses the UPNPLib-mobile library created by "suggam", which in turn is a port of the abandoned UPNPLib project developed by "sbbi". Grateful
+      thanks to whoever these guys are.</p>
+  </body>
 </html>

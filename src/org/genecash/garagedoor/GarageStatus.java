@@ -29,17 +29,16 @@ public class GarageStatus extends Activity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.status);
 
-		// pull host address & port from preferences
+		// pull external address & port from preferences
 		SharedPreferences sSettings = getSharedPreferences(GarageSettings.PREFS_NAME, MODE_PRIVATE);
 		host = sSettings.getString(GarageSettings.PREFS_EXT_IP, "");
 		port = sSettings.getInt(GarageSettings.PREFS_EXT_PORT, 0);
 
 		btn = (ImageButton) findViewById(R.id.status);
 
-		// refresh button when pressed
 		btn.setOnClickListener(new View.OnClickListener() {
 			public void onClick(View v) {
-				Log.i(TAG, "onClick");
+				// this is how we have more than one AsyncTask running at a time
 				new ToggleDoor().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, null);
 			}
 		});
@@ -57,7 +56,6 @@ public class GarageStatus extends Activity {
 
 	@Override
 	protected void onDestroy() {
-		Log.i(TAG, "onDestroy");
 		super.onDestroy();
 	}
 
@@ -66,7 +64,6 @@ public class GarageStatus extends Activity {
 		@Override
 		protected Void doInBackground(Void... params) {
 			String cmd = "STATUS\n";
-			Log.i(TAG, "GetStatus");
 			try {
 				Socket sock = new Socket(host, port);
 				sock.setSoTimeout(2000);
@@ -75,6 +72,7 @@ public class GarageStatus extends Activity {
 					sock.getOutputStream().write(cmd.getBytes());
 					sock.setSoTimeout(30000);
 					String status = "";
+					// read status changes until we exit
 					while (status != null && !isCancelled()) {
 						try {
 							status = br.readLine();
@@ -88,20 +86,18 @@ public class GarageStatus extends Activity {
 			} catch (Exception e) {
 				publishProgress("error", e.getMessage());
 			}
-			Log.i(TAG, "GetStatus done");
 			return null;
 		}
 
-		// display message
 		@Override
 		protected void onProgressUpdate(String... values) {
 			if (values[0].equals("error")) {
 				// error message from exception
 				Toast.makeText(ctx, values[1], Toast.LENGTH_LONG).show();
+				Log.e(TAG, "Status exception: " + values[1]);
 			}
 			if (values[0].equals("status")) {
-				// display status value
-				Log.i(TAG, "status:" + values[1]);
+				// change button background to display status value
 				String status = values[1];
 				if ("TRANSIT".equals(status)) {
 					btn.setImageResource(R.drawable.barberpole_gray);
@@ -116,7 +112,7 @@ public class GarageStatus extends Activity {
 		}
 	}
 
-	// toogle the garage door
+	// toggle the garage door
 	class ToggleDoor extends AsyncTask<Void, String, Void> {
 		@Override
 		protected Void doInBackground(Void... params) {
@@ -137,11 +133,12 @@ public class GarageStatus extends Activity {
 			return null;
 		}
 
-		// display message
+		// display error message
 		@Override
 		protected void onProgressUpdate(String... values) {
 			// error message from exception
 			Toast.makeText(ctx, values[0], Toast.LENGTH_LONG).show();
+			Log.e(TAG, "Status exception: " + values[0]);
 		}
 	}
 }
