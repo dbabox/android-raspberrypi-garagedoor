@@ -3,6 +3,7 @@
 
 import os
 import sys
+import ssl
 import time
 import socket
 import syslog
@@ -41,8 +42,12 @@ def output(s):
 
 # start of main routine
 syslog.openlog(ident='garagedoor', facility=syslog.LOG_DAEMON)
-syslog.syslog('Connect')
 pifacedigital = pifacedigitalio.PiFaceDigital()
+
+# get address of the other end
+client=socket.fromfd(0, socket.AF_INET, socket.SOCK_STREAM)
+addr=client.getpeername()[0]
+syslog.syslog('Connect: '+addr)
 
 # identify ourselves
 output('GARAGEDOOR')
@@ -53,6 +58,14 @@ syslog.syslog('Command: '+cmd)
 if cmd == 'TOGGLE':
     # open/close the door immediately
     press_button()
+elif cmd == 'OPEN':
+    # open door if it's closed
+    if status() == 'CLOSED':
+        press_button()
+elif cmd == 'CLOSE':
+    # close door if it's open
+    if status() == 'OPEN':
+        press_button()
 elif cmd == 'STATUS':
     # report current state of door until the remote closes connection
     state_old=''
@@ -74,18 +87,14 @@ elif cmd == 'STATUS':
         time.sleep(0.5)
 elif cmd == 'AWAY':
     # wait until we lose contact and then close the door
-    # get address of the other end
-    client=socket.fromfd(0, socket.AF_INET, socket.SOCK_STREAM)
-    addr=client.getpeername()[0]
-    syslog.syslog('Away address: '+addr)
-
     # check for "abort" file
     lockfile='garagedoor-'+addr+'.lock'
     if os.path.exists(lockdir+lockfile):
         syslog.syslog('Removing lockfile')
         os.remove(lockdir+lockfile)
+        output('ABORTED')
         exit(0)
-    file(lockdir+lockfile, 'w').write("")
+    file(lockdir+lockfile, 'w').write('')
 
     # open door if it's closed
     if status() == 'CLOSED':
@@ -93,6 +102,7 @@ elif cmd == 'AWAY':
 
     # wait until we lose contact or are told to exit
     syslog.syslog('Away function waiting for loss of signal')
+    output('WAITING')
     ctr=0
     while (ctr < 2) and os.path.exists(lockdir+lockfile):
         # deal with single dropped packets
@@ -115,4 +125,7 @@ elif cmd == 'AWAY':
 else:
     # huh? what?
     syslog.syslog(syslog.LOG_ERR, 'Unknown command')
-    output('ERROR')
+    # ban him
+    os.system('fail2ban-client set ssh banip '+addr)
+    # bug workaround
+    os.system('touch /var/log/auth.log')

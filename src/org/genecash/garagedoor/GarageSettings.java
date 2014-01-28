@@ -89,7 +89,6 @@ public class GarageSettings extends Activity {
 			@Override
 			public void onServiceLost(NsdServiceInfo serviceInfo) {
 				Log.i(TAG, "Service Lost " + serviceInfo);
-				final String type = serviceInfo.getServiceType();
 				final String name = serviceInfo.getServiceName();
 
 				// remove button in a thread-safe manner
