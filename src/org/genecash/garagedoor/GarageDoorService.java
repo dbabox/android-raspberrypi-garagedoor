@@ -2,6 +2,8 @@ package org.genecash.garagedoor;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.Socket;
 
 import android.app.IntentService;
@@ -13,6 +15,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.WifiLock;
@@ -30,13 +33,21 @@ public class GarageDoorService extends IntentService {
 	private WifiLock wifiLock;
 	private WakeLock cpuLock;
 
+	// notifications
 	private Notification notification;
 	private Builder notifyBuilder;
 	private String notificationAction = "org.genecash.garagedoor.EXIT";
 
+	// settings
 	private String network;
 	private String host;
 	private int port;
+
+	// data connection management
+	private boolean data;
+	Object iConnectivityManager;
+	Method getMobileDataEnabledMethod;
+	Method setMobileDataEnabledMethod;
 
 	private boolean done = false;
 
@@ -64,8 +75,29 @@ public class GarageDoorService extends IntentService {
 		network = sSettings.getString(GarageSettings.PREFS_NETWORK, "");
 		host = sSettings.getString(GarageSettings.PREFS_EXT_IP, "");
 		port = sSettings.getInt(GarageSettings.PREFS_EXT_PORT, 0);
+		data = sSettings.getBoolean(GarageSettings.PREFS_DATA, false);
 
 		wifiManager = (WifiManager) this.getSystemService(Context.WIFI_SERVICE);
+
+		// set up the ability to test/set data connection
+		// since we're not really allowed to use this, we've got to use reflection to dig it out
+		try {
+			ConnectivityManager conman = (ConnectivityManager) this.getSystemService(Context.CONNECTIVITY_SERVICE);
+			Class<?> conmanClass = Class.forName(conman.getClass().getName());
+
+			Field iConnectivityManagerField = conmanClass.getDeclaredField("mService");
+			iConnectivityManagerField.setAccessible(true);
+			iConnectivityManager = iConnectivityManagerField.get(conman);
+			Class iConnectivityManagerClass = Class.forName(iConnectivityManager.getClass().getName());
+
+			setMobileDataEnabledMethod = iConnectivityManagerClass.getDeclaredMethod("setMobileDataEnabled", Boolean.TYPE);
+			setMobileDataEnabledMethod.setAccessible(true);
+
+			getMobileDataEnabledMethod = iConnectivityManagerClass.getDeclaredMethod("getMobileDataEnabled");
+			getMobileDataEnabledMethod.setAccessible(true);
+		} catch (Exception e) {
+			data = false;
+		}
 
 		// this runs when scan results are available, or the notification gets clicked
 		broadcastReceiver = new BroadcastReceiver() {
@@ -117,12 +149,22 @@ public class GarageDoorService extends IntentService {
 		// start the network scans
 		wifiManager.startScan();
 
+		// turn on data if the user wants it done automatically
+		if (data && !getDataEnabled()) {
+			setDataEnabled(true);
+		}
+
 		// busy work
 		while (!done) {
 			try {
-				Thread.sleep(500);
+				Thread.sleep(1000);
 			} catch (InterruptedException e) {
 			}
+		}
+
+		// turn off data if we turned it on
+		if (data && getDataEnabled()) {
+			setDataEnabled(false);
 		}
 	}
 
@@ -163,6 +205,24 @@ public class GarageDoorService extends IntentService {
 				Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
 			}
 			return null;
+		}
+	}
+
+	// discover if mobile data connection is enabled
+	public boolean getDataEnabled() {
+		try {
+			return (Boolean) getMobileDataEnabledMethod.invoke(iConnectivityManager);
+		} catch (Exception e) {
+			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
+		}
+		return false;
+	}
+
+	public void setDataEnabled(boolean value) {
+		try {
+			setMobileDataEnabledMethod.invoke(iConnectivityManager, value);
+		} catch (Exception e) {
+			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
 		}
 	}
 }
