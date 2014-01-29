@@ -170,6 +170,7 @@ public class GarageSettings extends Activity {
 		lvServiceList.setAdapter(adapterServices);
 
 		// set up list of routers found
+		listRouters.add(new PrintableRouter(null, "Scanning for routers..."));
 		lvRoutersList = (ListView) findViewById(R.id.list_routers);
 		adapterRouters = new ArrayAdapter<PrintableRouter>(this, android.R.layout.simple_list_item_1, listRouters);
 		lvRoutersList.setAdapter(adapterRouters);
@@ -256,35 +257,31 @@ public class GarageSettings extends Activity {
 	class GetExternalIP extends AsyncTask<Void, String, Void> {
 		@Override
 		protected Void doInBackground(Void... params) {
-			publishProgress("msg", "Scanning routers");
 			try {
 				InternetGatewayDevice[] IGDs = InternetGatewayDevice.getDevices(5000);
 				if (IGDs != null) {
 					for (InternetGatewayDevice igd : IGDs) {
-						publishProgress("data", igd.getIGDRootDevice().getModelDescription(), igd.getExternalIPAddress());
+						publishProgress(igd.getIGDRootDevice().getModelDescription(), igd.getExternalIPAddress());
 					}
 				} else {
-					publishProgress("msg", "Unable to find router on your network\nIs UPnP disabled on your router?");
+					publishProgress(null, "Unable to find a router on your network\nUPnP must be enabled on your router");
 				}
 			} catch (IOException e) {
-				publishProgress("msg", "UPnP error: " + e.getMessage());
+				publishProgress(null, "UPnP error: " + e.getMessage());
 			} catch (UPNPResponseException respEx) {
-				publishProgress("msg", "UPNP error: " + respEx.getDetailErrorCode() + " " + respEx.getDetailErrorDescription());
+				publishProgress(null, "UPnP error: " + respEx.getDetailErrorCode() + "\n" + respEx.getDetailErrorDescription());
 			}
-			publishProgress("msg", "Router scan complete");
 			return null;
 		}
 
 		// display exception message
 		@Override
 		protected void onProgressUpdate(String... values) {
-			if (values[0].equals("msg")) {
-				Toast.makeText(ctx, values[1], Toast.LENGTH_LONG).show();
+			if (listRouters.get(0).name == null) {
+				listRouters.remove(0);
 			}
-			if (values[0].equals("data")) {
-				listRouters.add(new PrintableRouter(values[1], values[2]));
-				adapterRouters.notifyDataSetChanged();
-			}
+			listRouters.add(new PrintableRouter(values[0], values[1]));
+			adapterRouters.notifyDataSetChanged();
 		}
 	}
 }

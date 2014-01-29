@@ -11,6 +11,10 @@ public class PrintableRouter {
 
 	@Override
 	public String toString() {
+		if (name == null) {
+			// dummy status message
+			return ip;
+		}
 		return "Name: " + name + "\nExternal IP: " + ip;
 	}
 }

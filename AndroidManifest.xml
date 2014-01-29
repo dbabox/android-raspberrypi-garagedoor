@@ -2,8 +2,8 @@
 <manifest
     xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.genecash.garagedoor"
-    android:versionCode="1390640326"
-    android:versionName="25-JAN-2014 03:58:46 AM">
+    android:versionCode="1391003407"
+    android:versionName="29-JAN-2014 08:50:07 AM">
     <uses-sdk
         android:minSdkVersion="16"
         android:targetSdkVersion="18" />
