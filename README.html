@@ -43,7 +43,7 @@
       <li>Make it an executable script by running<br>
         <code>chmod 500 /usr/local/bin/garagedoor.py</code></li>
       <li>Assign it to the script user by running<br>
-        <code>chown garagedoor.nogroup /usr/local/bin/garagedoor.py</code></li>
+        <code>chown garagedoor:nogroup /usr/local/bin/garagedoor.py</code></li>
       <li>Add the inetd entry by running<br>
         <code>update-inetd --add '17000\tstream\ttcp\tnowait\tgaragedoor\t/usr/local/bin/garagedoor.py'</code></li>
       <li>Install a wi-fi dongle as per the HOWTOs on the 'net, like
@@ -80,7 +80,7 @@
     <p>You need to install telnet-ssl on your desktop.</p>
     <p>You should be able to open the garage door by telnetting to port 17000, typing "TOGGLE" and hitting enter.</p>
     <code>
-      02:43:37 ~/raspberry_pi # telnet garagedoor.local 17000<br>
+      02:43:37 ~/raspberry_pi # telnet -z ssl garagedoor.local 17000<br>
       Trying 192.168.128.20...<br>
       Connected to garagedoor.local.<br>
       Escape character is '^]'.<br>

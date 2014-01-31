@@ -44,6 +44,8 @@ public class GarageSettings extends Activity {
 	static final String SERVICE_TYPE = "_garagedoor._tcp";
 	protected static final String TAG = "GARAGEDOOR";
 
+	static final String SSL_COMMON_NAME = "Garage Door Opener";
+
 	private NsdManager nsdManager;
 	private ResolveListener resolveListener;
 	private DiscoveryListener discoveryListener;
@@ -237,9 +239,9 @@ public class GarageSettings extends Activity {
 	@Override
 	protected void onResume() {
 		// populate list of services
-		nsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener);
+		// nsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener);
 		// populate list of routers
-		new GetExternalIP().execute();
+		// new GetExternalIP().execute();
 		super.onResume();
 	}
 

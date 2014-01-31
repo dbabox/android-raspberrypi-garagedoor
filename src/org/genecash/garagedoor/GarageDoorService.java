@@ -4,7 +4,9 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.net.Socket;
+
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 
 import android.app.IntentService;
 import android.app.Notification;
@@ -50,6 +52,7 @@ public class GarageDoorService extends IntentService {
 	Method setMobileDataEnabledMethod;
 
 	private boolean done = false;
+	private SSLSocketFactory sslSocketFactory;
 
 	// the usual weird Java bullshit goin' on here
 	public GarageDoorService() {
@@ -194,7 +197,7 @@ public class GarageDoorService extends IntentService {
 		protected Void doInBackground(Void... params) {
 			String cmd = "OPEN\n";
 			try {
-				Socket sock = new Socket(host, port);
+				SSLSocket sock = (SSLSocket) sslSocketFactory.createSocket(host, port);
 				sock.setSoTimeout(2000);
 				BufferedReader br = new BufferedReader(new InputStreamReader(sock.getInputStream(), "ASCII"));
 				if (br.readLine().equals("GARAGEDOOR")) {

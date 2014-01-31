@@ -1,8 +1,20 @@
 package org.genecash.garagedoor;
 
 import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.Socket;
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
+
+import javax.net.ssl.SSLSocket;
+
+import org.apache.http.conn.ssl.SSLSocketFactory;
+import org.apache.http.params.BasicHttpParams;
 
 import android.app.Activity;
 import android.content.Context;
@@ -24,6 +36,10 @@ public class GarageStatus extends Activity {
 	private String host;
 	private int port;
 
+	private SSLSocketFactory sslSocketFactory;
+
+	private String TRUSTSTORE_PASSWORD = "secret";
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -42,6 +58,31 @@ public class GarageStatus extends Activity {
 				new ToggleDoor().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, null);
 			}
 		});
+
+		// initialize SSL
+		KeyStore localTrustStore = null;
+		try {
+			localTrustStore = KeyStore.getInstance("BKS");
+			InputStream in = getResources().openRawResource(R.raw.mytruststore);
+			localTrustStore.load(in, TRUSTSTORE_PASSWORD.toCharArray());
+			if (localTrustStore.size() != 1) {
+				Toast.makeText(this, "No certificiates in trust store", Toast.LENGTH_LONG).show();
+			}
+			sslSocketFactory = new SSLSocketFactory(localTrustStore);
+			sslSocketFactory.setHostnameVerifier(SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
+		} catch (KeyStoreException e) {
+			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
+		} catch (KeyManagementException e) {
+			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
+		} catch (UnrecoverableKeyException e) {
+			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
+		} catch (NoSuchAlgorithmException e) {
+			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
+		} catch (CertificateException e) {
+			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
+		} catch (IOException e) {
+			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
+		}
 
 		taskStatus = new GetStatus();
 		taskStatus.execute();
@@ -65,7 +106,7 @@ public class GarageStatus extends Activity {
 		protected Void doInBackground(Void... params) {
 			String cmd = "STATUS\n";
 			try {
-				Socket sock = new Socket(host, port);
+				SSLSocket sock = (SSLSocket) sslSocketFactory.connectSocket(null, host, port, null, 0, new BasicHttpParams());
 				sock.setSoTimeout(2000);
 				BufferedReader br = new BufferedReader(new InputStreamReader(sock.getInputStream(), "ASCII"));
 				if (br.readLine().equals("GARAGEDOOR")) {
@@ -117,9 +158,8 @@ public class GarageStatus extends Activity {
 		@Override
 		protected Void doInBackground(Void... params) {
 			String cmd = "TOGGLE\n";
-			Log.i(TAG, "ToggleDoor");
 			try {
-				Socket sock = new Socket(host, port);
+				SSLSocket sock = (SSLSocket) sslSocketFactory.connectSocket(null, host, port, null, 0, new BasicHttpParams());
 				sock.setSoTimeout(2000);
 				BufferedReader br = new BufferedReader(new InputStreamReader(sock.getInputStream(), "ASCII"));
 				if (br.readLine().equals("GARAGEDOOR")) {
