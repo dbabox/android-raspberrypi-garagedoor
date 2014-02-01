@@ -11,10 +11,11 @@ import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
-
-import org.apache.http.conn.ssl.SSLSocketFactory;
-import org.apache.http.params.BasicHttpParams;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManagerFactory;
 
 import android.app.Activity;
 import android.content.Context;
@@ -37,8 +38,7 @@ public class GarageStatus extends Activity {
 	private int port;
 
 	private SSLSocketFactory sslSocketFactory;
-
-	private String TRUSTSTORE_PASSWORD = "secret";
+	private String KEYSTORE_PASSWORD = "secret";
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -60,27 +60,34 @@ public class GarageStatus extends Activity {
 		});
 
 		// initialize SSL
-		KeyStore localTrustStore = null;
 		try {
-			localTrustStore = KeyStore.getInstance("BKS");
-			InputStream in = getResources().openRawResource(R.raw.mytruststore);
-			localTrustStore.load(in, TRUSTSTORE_PASSWORD.toCharArray());
-			if (localTrustStore.size() != 1) {
-				Toast.makeText(this, "No certificiates in trust store", Toast.LENGTH_LONG).show();
-			}
-			sslSocketFactory = new SSLSocketFactory(localTrustStore);
-			sslSocketFactory.setHostnameVerifier(SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
-		} catch (KeyStoreException e) {
-			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
-		} catch (KeyManagementException e) {
-			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
-		} catch (UnrecoverableKeyException e) {
-			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
+			// Local client certificate and key and server certificate
+			InputStream pkcs12in = getResources().openRawResource(R.raw.client);
+			SSLContext context = SSLContext.getInstance("TLS");
+			KeyStore keyStore = KeyStore.getInstance("PKCS12");
+			keyStore.load(pkcs12in, KEYSTORE_PASSWORD.toCharArray());
+			// Build a TrustManager, that trusts only the server certificate
+			TrustManagerFactory tmf = TrustManagerFactory.getInstance("X509");
+			KeyStore keyStoreCA = KeyStore.getInstance("BKS");
+			keyStoreCA.load(null, null);
+			keyStoreCA.setCertificateEntry("Server", keyStore.getCertificate("Server"));
+			tmf.init(keyStoreCA);
+			// Build a KeyManager for Client auth
+			KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+			kmf.init(keyStore, null);
+			context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+			sslSocketFactory = context.getSocketFactory();
 		} catch (NoSuchAlgorithmException e) {
 			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
 		} catch (CertificateException e) {
 			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
 		} catch (IOException e) {
+			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
+		} catch (KeyStoreException e) {
+			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
+		} catch (UnrecoverableKeyException e) {
+			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
+		} catch (KeyManagementException e) {
 			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
 		}
 
@@ -106,7 +113,7 @@ public class GarageStatus extends Activity {
 		protected Void doInBackground(Void... params) {
 			String cmd = "STATUS\n";
 			try {
-				SSLSocket sock = (SSLSocket) sslSocketFactory.connectSocket(null, host, port, null, 0, new BasicHttpParams());
+				SSLSocket sock = (SSLSocket) sslSocketFactory.createSocket(host, port);
 				sock.setSoTimeout(2000);
 				BufferedReader br = new BufferedReader(new InputStreamReader(sock.getInputStream(), "ASCII"));
 				if (br.readLine().equals("GARAGEDOOR")) {
@@ -159,7 +166,7 @@ public class GarageStatus extends Activity {
 		protected Void doInBackground(Void... params) {
 			String cmd = "TOGGLE\n";
 			try {
-				SSLSocket sock = (SSLSocket) sslSocketFactory.connectSocket(null, host, port, null, 0, new BasicHttpParams());
+				SSLSocket sock = (SSLSocket) sslSocketFactory.createSocket(host, port);
 				sock.setSoTimeout(2000);
 				BufferedReader br = new BufferedReader(new InputStreamReader(sock.getInputStream(), "ASCII"));
 				if (br.readLine().equals("GARAGEDOOR")) {
