@@ -5,8 +5,8 @@
     android:versionCode="1391003407"
     android:versionName="29-JAN-2014 08:50:07 AM">
     <uses-sdk
-        android:minSdkVersion="16"
-        android:targetSdkVersion="18" />
+        android:minSdkVersion="17"
+        android:targetSdkVersion="17" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -36,8 +36,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        
-        
         <activity
             android:name="GarageDoor"
             android:label="Garage Door"

@@ -2,7 +2,9 @@ package org.genecash.garagedoor;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.net.Socket;
+
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 
 import android.app.Activity;
 import android.content.Context;
@@ -15,6 +17,7 @@ public class GarageAway extends Activity {
 	private Context ctx = this;
 	private String host;
 	private int port;
+	private SSLSocketFactory sslSocketFactory;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -24,6 +27,9 @@ public class GarageAway extends Activity {
 		SharedPreferences sSettings = getSharedPreferences(GarageSettings.PREFS_NAME, MODE_PRIVATE);
 		host = sSettings.getString(GarageSettings.PREFS_LOCAL_IP, "");
 		port = sSettings.getInt(GarageSettings.PREFS_LOCAL_PORT, 0);
+
+		// initialize SSL
+		sslSocketFactory = Utilities.initSSL(getResources().openRawResource(R.raw.client));
 
 		new SetAway().execute();
 		finish();
@@ -35,7 +41,7 @@ public class GarageAway extends Activity {
 		protected Void doInBackground(Void... params) {
 			String cmd = "AWAY\n";
 			try {
-				Socket sock = new Socket(host, port);
+				SSLSocket sock = (SSLSocket) sslSocketFactory.createSocket(host, port);
 				sock.setSoTimeout(2000);
 				BufferedReader br = new BufferedReader(new InputStreamReader(sock.getInputStream(), "ASCII"));
 				if (br.readLine().equals("GARAGEDOOR")) {

@@ -239,9 +239,9 @@ public class GarageSettings extends Activity {
 	@Override
 	protected void onResume() {
 		// populate list of services
-		// nsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener);
+		nsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener);
 		// populate list of routers
-		// new GetExternalIP().execute();
+		new GetExternalIP().execute();
 		super.onResume();
 	}
 
@@ -256,6 +256,7 @@ public class GarageSettings extends Activity {
 
 	// try to discover external IP addresses of routers via UPnP
 	// requires upnplib-mobile.jar from http://sourceforge.net/projects/upnplibmobile/
+	// thanks to "suggam" for this, and to "sbbi" for the original UPNPLib project, whoever they are!
 	class GetExternalIP extends AsyncTask<Void, String, Void> {
 		@Override
 		protected Void doInBackground(Void... params) {

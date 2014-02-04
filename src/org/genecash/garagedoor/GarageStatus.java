@@ -1,21 +1,10 @@
 package org.genecash.garagedoor;
 
 import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.security.KeyManagementException;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.UnrecoverableKeyException;
-import java.security.cert.CertificateException;
 
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.TrustManagerFactory;
 
 import android.app.Activity;
 import android.content.Context;
@@ -38,7 +27,6 @@ public class GarageStatus extends Activity {
 	private int port;
 
 	private SSLSocketFactory sslSocketFactory;
-	private String KEYSTORE_PASSWORD = "secret";
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -60,36 +48,7 @@ public class GarageStatus extends Activity {
 		});
 
 		// initialize SSL
-		try {
-			// Local client certificate and key and server certificate
-			InputStream pkcs12in = getResources().openRawResource(R.raw.client);
-			SSLContext context = SSLContext.getInstance("TLS");
-			KeyStore keyStore = KeyStore.getInstance("PKCS12");
-			keyStore.load(pkcs12in, KEYSTORE_PASSWORD.toCharArray());
-			// Build a TrustManager, that trusts only the server certificate
-			TrustManagerFactory tmf = TrustManagerFactory.getInstance("X509");
-			KeyStore keyStoreCA = KeyStore.getInstance("BKS");
-			keyStoreCA.load(null, null);
-			keyStoreCA.setCertificateEntry("Server", keyStore.getCertificate("Server"));
-			tmf.init(keyStoreCA);
-			// Build a KeyManager for Client auth
-			KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-			kmf.init(keyStore, null);
-			context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
-			sslSocketFactory = context.getSocketFactory();
-		} catch (NoSuchAlgorithmException e) {
-			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
-		} catch (CertificateException e) {
-			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
-		} catch (IOException e) {
-			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
-		} catch (KeyStoreException e) {
-			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
-		} catch (UnrecoverableKeyException e) {
-			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
-		} catch (KeyManagementException e) {
-			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
-		}
+		sslSocketFactory = Utilities.initSSL(getResources().openRawResource(R.raw.client));
 
 		taskStatus = new GetStatus();
 		taskStatus.execute();
