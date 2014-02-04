@@ -74,7 +74,7 @@ public class GarageDoorService extends IntentService {
 		startForeground(ONGOING_NOTIFICATION_ID, notification);
 
 		// initialize SSL
-		sslSocketFactory = Utilities.initSSL(getResources().openRawResource(R.raw.client));
+		sslSocketFactory = Utilities.initSSL(this);
 
 		// pull locate network name, host address & port from preferences
 		SharedPreferences sSettings = getSharedPreferences(GarageSettings.PREFS_NAME, MODE_PRIVATE);

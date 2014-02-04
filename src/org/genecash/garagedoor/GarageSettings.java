@@ -1,7 +1,11 @@
 package org.genecash.garagedoor;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,6 +22,7 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Environment;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -31,6 +36,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 public class GarageSettings extends Activity {
+	static final String CERT_FILE = "client.p12";
+
 	// setting preferences
 	static final String PREFS_NAME = "GarageDoorPrefs";
 	static final String PREFS_LOCAL_IP = "Local_IP";
@@ -228,6 +235,12 @@ public class GarageSettings extends Activity {
 			}
 		});
 
+		// "fetch certificate" button.
+		findViewById(R.id.fetch).setOnClickListener(new View.OnClickListener() {
+			public void onClick(View v) {
+				fetchCert();
+			}
+		});
 		// "cancel" button.
 		findViewById(R.id.cancel).setOnClickListener(new View.OnClickListener() {
 			public void onClick(View v) {
@@ -252,6 +265,33 @@ public class GarageSettings extends Activity {
 		} catch (Exception e) {
 		}
 		super.onPause();
+	}
+
+	// fetch certificate from external storage (sdcard) and move it to protected directory
+	void fetchCert() {
+		FileChannel src = null;
+		FileChannel dst = null;
+		File f = new File(Environment.getExternalStorageDirectory(), CERT_FILE);
+
+		// open source if we can
+		try {
+			src = new FileInputStream(f).getChannel();
+		} catch (FileNotFoundException e) {
+			Toast.makeText(this, "Opening certificate file failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+			return;
+		}
+
+		// copy & delete file
+		try {
+			dst = openFileOutput(CERT_FILE, Context.MODE_PRIVATE).getChannel();
+			dst.transferFrom(src, 0, src.size());
+			src.close();
+			dst.close();
+			f.delete();
+			Toast.makeText(this, "Certificate fetched!", Toast.LENGTH_LONG).show();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	// try to discover external IP addresses of routers via UPnP

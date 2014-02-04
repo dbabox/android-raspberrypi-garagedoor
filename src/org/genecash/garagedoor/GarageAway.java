@@ -29,7 +29,7 @@ public class GarageAway extends Activity {
 		port = sSettings.getInt(GarageSettings.PREFS_LOCAL_PORT, 0);
 
 		// initialize SSL
-		sslSocketFactory = Utilities.initSSL(getResources().openRawResource(R.raw.client));
+		sslSocketFactory = Utilities.initSSL(this);
 
 		new SetAway().execute();
 		finish();

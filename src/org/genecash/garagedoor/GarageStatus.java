@@ -48,7 +48,7 @@ public class GarageStatus extends Activity {
 		});
 
 		// initialize SSL
-		sslSocketFactory = Utilities.initSSL(getResources().openRawResource(R.raw.client));
+		sslSocketFactory = Utilities.initSSL(this);
 
 		taskStatus = new GetStatus();
 		taskStatus.execute();
