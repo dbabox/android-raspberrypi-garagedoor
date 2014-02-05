@@ -1,146 +1,19 @@
-<html>
-  <head>
-    <title>Hands-free garage door operation using a Raspberry Pi and an Android phone</title>
-    <style type="text/css">
-      li { margin-bottom: 8px; }
-    </style>
-  </head>
-  <body>
-    <h1>Hands-free garage door operation using a Raspberry Pi and an Android phone</h1>
-    <p>From the <a href="https://github.com/CrashCash/android-raspberrypi-garagedoor" target="_blank">android-raspberrypi-garagedoor</a> Git repository on
-      GitHub</p>
-    <p>I ride a motorcycle, and garage door remotes don't last very long out in the elements, even if you can find a good place to mount one on your bike and
-      you're willing to put up with the hassle.</p>
-    <p>This system automatically opens the garage door when I come home. The user only has to remember to start the Android app before riding home. When you
-      arrive home and it sees your personal wi-fi network, it asks the Raspberry Pi to open the garage door so you can drive right in without fiddling with
-      anything.</p>
-    <p>It was inspired by Brad Fitzpatrick's work (<a href="http://brad.livejournal.com/2394220.html" target="_blank">http://brad.livejournal.com/2394220.html</a>)
-      that he started in 2008, and the fact that my Flash2Pass stopped working.</p>
-    <p>It uses a Raspberry Pi with the <a href="http://www.piface.org.uk/products/piface_digital/" target="_blank">PiFace I/O board</a> and a wi-fi dongle. The
-    Pi should be running Raspbian.</p>
-    <p>Originally the approach was to connect to the Raspberry Pi over our home wi-fi. However, it takes <i>forever</i> to authorize and connect to the wi-fi
-      network using WPA2, so what we do now is to connect over the cellular data network when our wi-fi network appears in a scan. The app is smart enough to turn
-      the data connection on and off as necessary.</p>
-    <p>When we're getting ready to leave, there is an "away" app that opens the garage door for us, and then when we're out of wi-fi range the Raspberry Pi
-      automatically closes the door. If you change your mind, just run the app again to cancel it.</p>
-    <p>You can also check the status of the garage door remotely, so you can know it's closed. It displays a large green button if it's closed, which is red if
-      it's open. It's barberpole-grey if it's in-between, and barberpole-red if there is a problem. You can tap the button to open or close the door.</p>
-    <p>The setup app uses UPnP and zeroconf to automatically determine as much information as it can, so the Android configuration is just a couple taps, and
-      entering the external port number.</p>
-    <h3>To quickly set up the Raspberry Pi:</h3>
-    <p>(you'll need to do most of this as root)</p>
-    <ol>
-      <li>Change the hostname to "garagedoor" in raspi-config</li>
-      <li>Get the most current list of the latest Raspbian packages by running<br>
-        <code>apt-get update</code></li>
-      <li>Install the software packages you need by running<br>
-        <code>apt-get install avahi-daemon fail2ban python-pifacedigitalio python-twisted</code></li>
-      <li>Copy the garagedoor.service file to /etc/avahi/services</li>
-      <li>Copy the jail.local file to /etc/fail2ban</li>
-      <li>Create the script user by running<br>
-        <code>adduser --system garagedoor</code></li>
-      <li>Add the script user to the proper groups (so he can see the PiFace devices) by running<br>
-        <code>adduser garagedoor spi</code><br>
-        <code>adduser garagedoor gpio</code></li>
-      <li>Copy the garagedoor.tac file to /usr/local/bin</li>
-      <li>Set the proper permissions by running<br>
-        <code>chmod ugo=r /usr/local/bin/garagedoor.tac</code></li>
-      <li>Assign it to the script user by running<br>
-        <code>chown garagedoor:nogroup /usr/local/bin/garagedoor.tac</code></li>
-      <li>Install a wi-fi dongle as per the HOWTOs on the 'net, like
-        <a href="https://learn.sparkfun.com/tutorials/using-pcduinos-wifi-dongle-with-the-pi" target="_blank">this one from SparkFun</a>. You will most probably
-        need a powered USB hub for it, as most dongles are extremely power-hungry.</li>
-      <li>Start the daemon with<br>
-        <code>twistd --python /usr/local/bin/garagedoor.tac --syslog</code></li>
-    </ol>
-    <h3>Local network setup</h3>
-    <ul>
-      <li>Enable UPnP on your router. This allows the setup app to simply ask it for the external IP address, so you don't have to manually trawl through the
-        router configuration webpages.</li>
-      <li>Assign the Raspberry Pi a reserved DHCP address. Your router will have a screen somewhere to say "this IP address is reserved for that MAC
-        address".</li>
-      <li>Open a port in the firewall and forward it to the Raspberry Pi's address and port 17000. This lets the phone to connect over the internet. Remember
-        this port number so you can enter it in the setup app.</li>
-      <li>You should run avahi-daemon on your Linux box to resolve "garagedoor.local" for ssh, but this is usually already the case with Debian and Ubuntu.</li>
-    </ul>
-    <h3>Setting up the ability to open/close the garage door</h3>
-    <p>One of the relays on the PiFace board is connected to the opener simulating a button. You can connect it in parallel with the real pushbuttons.</p>
-    <p>The wires should be inserted in the two relay contacts nearest the jumper, and connected to where you need to connect switches on your opener. I used
-    plain 22-gauge stranded 2-conductor speaker wire.</p>
-    <p>To test things, run the following Python commands:</p>
-    <code>
-      >>> import time, pifacedigitalio<br>
-      >>> pifacedigital=pifacedigitalio.PiFaceDigital()<br>
-      >>> pifacedigital.relays[0].turn_on() ; time.sleep(0.2) ; pifacedigital.relays[0].turn_off()
-    </code>
-    <p>The garage door should open, or you should at least hear a click from the relay.</p>
-    <h3>Setting up the ability to sense if the door is opened or closed</h3>
-    <p>Reed switches are small devices that close a contact when a magnet is brought near. I mounted two of them on the garage opener rail, and placed magnets
-      on the slider, so that the reed switches activate when the slider reaches the open or closed positions. These reed switches are connected to the digital
-      inputs on the PiFace board. I used <a href="http://mouser.com/" target="_blank">Mouser Electronics</a> part 507-AMS-9G which are AMSECO 505-90G
-      devices.</p>
-    <p>The switch wires should be inserted ?how?</p>
-    <p>To test things, run the following Python commands:</p>
-    <code>
-      >>> import pifacedigitalio<br>
-      >>> pifacedigital=pifacedigitalio.PiFaceDigital()<br>
-      >>> print pifacedigital.input_port.value & 3<br>
-      1
-    </code>
-    <p>This should print a "1" if the door is closed, or "2" if it's open. It should print "0" only if the door is neither open nor closed.</p>
-    <h3>Security and generating the SSL certificates</h3>
-    <p>Obviously the garage door needs to be secure. It's protected by SSL mutual authentication, where not only does the phone authenticate the server, but the
-       phone presents a certificate to prove it's authorized.</p>
-    <p>Here are the steps to generate two self-signed X.509 certificates. This will generate two new RSA 2048 bit keys, generate two self signed certificates,
-    and bundle the client certificate with the corresponding private key, and the server's public certificate in a PKCS#12 container file.</p>
-    <code>
-      OPENSSL_OPTS="-new -newkey rsa:2048 -nodes -days 3650 -x509"<br>
-      openssl req -keyout key-server.pem -subj "/CN=server" -out cert-server.pem $OPENSSL_OPTS<br>
-      openssl req -keyout key-client.pem -subj "/CN=client" -out cert-client.pem $OPENSSL_OPTS<br>
-      openssl pkcs12 -export -passout "pass:secret" -in cert-client.pem -inkey key-client.pem -out client.p12 -certfile cert-server.pem -name "Client" -caname
-      "Server"<br>
-    </code>
-    <p>Now you need to install the certificates into the proper places.</p>
-    <ul>
-      <li>Copy client.p12 to the sdcard area on your phone, so the setup app can find it, as this is the "client certificate".</li>
-      <li>Copy cert-server.pem key-server.pem cert-client.pem to /etc/garagedoor on the Raspberry Pi.</li>
-      <li>Set the proper permissions by running (as root) on the Raspberry Pi<br>
-        <code>
-          cd /etc/garagedoor<br>
-          chmod u=rxt .<br>
-          chmod u=r cert-server.pem key-server.pem cert-client.pem<br>
-          chown garagedoor:nogroup . cert-server.pem key-server.pem cert-client.pem
-        </code>
-      </li>
-    </ul>
-    <h3>Credits</h3>
-    <p>The setup app uses the UPNPLib-mobile library created by "suggam", which in turn is a port of the abandoned UPNPLib project developed by "sbbi". Grateful
-      thanks to whoever these guys are.</p>
-    <h3>Brickbats</h3>
-    <p>Since security is so important in mobile apps, it would really behoove Google to write training docs on how to code SSL, and how to generate the
-      keys. It'd be icing on the cake if they covered mutual authentication for non-HTTPS applications. The Twisted guys can do it for Python, why can't Google
-      do it for Java?</p>
-    <p>I spent six days searching Google and Bing, and I found only
-      <a href="https://www.datenzone.de/blog/2012/01/using-ssltls-client-certificate-authentification-in-android-applications/" target="_blank">one answer</a>
-      that showed how to implement mutual authentication properly, and more importantly, showed how to generate the certificates. Even this answer doesn't
-      explain how it works, it just shows a couple blocks of code and OpenSSL commands.</p>
-    <p><i>Every single one</i> of the StackOverflow answers were "here's how to accept <u>every</u> certificate" which makes implementing SSL a waste of time if
-      you're just going to let everybody in. Worse, the responses indicated the coder was going to use it without question, in production code, and without
-      realizing that it was no security at all. They said "Great! Thanks for the wonderful answer. Now my code can connect. I'm done!"</p>
-    <p>If Google feels that writing such a tutorial is some sort of legal risk, they could keep it on their servers and not make it part of the SDK
-      documentation download. If they found an error or something misleading, it would still be under their control and they could instantly rewrite or remove
-      the problem.</p>
-    <p>This stuff is difficult, and Android developers need help.</p>
-    <h3>History</h3>
-    <p>I originally started off with a very simple Python script run by inetd, about 09-JAN-2014. I realized I really needed SSL authentication, so I used
-      stunnel as an inetd wrapper, then as a full daemon. This is how I got SSL client authentication working, which is really difficult in Android. Performance
-      was horrible due to the SSL server initialization time, so I rewrote it using the Twisted framework. The first "production" version was 03-FEB-2014.</p>
-    <h3>Other notes</h3>
-    <p>I originally intended to use an Arduino, but a wi-fi shield was $85! The other killer factor was that all the I/O shields were kits and I'm really crap
-      at soldering.</p>
-    <p>I thought all the Raspberry Pi buzz was just the usual internet hype, so I never really considered one, but for $35, it was too good to pass up. The
-      <a href="http://makezine.com" target="_blank"><i>MAKE Magazine</i></a> microcontroller guide basically flat out said "out of the dozen boards in this
-      roundup, this or the Arduino are your two good choices" and that was a deciding factor.</p>
-    <p>It's amazing that it's a full Debian machine not too far behind my previous generation desktop PC.</p>
-  </body>
-</html>
+Hands-free garage door operation using a Raspberry Pi and an Android phone
+
+From the android-raspberrypi-garagedoor Git repository on GitHub
+
+I ride a motorcycle, and garage door remotes don't last very long out in the elements, even if you can find a good place to mount one on your bike and you're willing to put up with the hassle.
+
+This system automatically opens the garage door when I come home. The user only has to remember to start the Android app before riding home. When you arrive home and it sees your personal wi-fi network, it asks the Raspberry Pi to open the garage door so you can drive right in without fiddling with anything.
+
+It was inspired by Brad Fitzpatrick's work that he started in 2008, and the fact that my Flash2Pass stopped working.
+
+It uses a Raspberry Pi with the PiFace I/O board and a wi-fi dongle. The Pi should be running Raspbian. It uses SSL mutual authentication to control who can open the door. Only the Android app with the properly signed certificate can do it.
+
+Originally the approach was to connect to the Raspberry Pi over our home wi-fi. However, it takes forever to authorize and connect to the wi-fi network using WPA2, so what we do now is to connect over the cellular data network when our wi-fi network appears in a scan. The app is smart enough to turn the data connection on and off as necessary.
+
+When we're getting ready to leave, there is an "away" app that opens the garage door for us, and then when we're out of wi-fi range the Raspberry Pi automatically closes the door. If you change your mind, just run the app again to cancel it.
+
+You can also check the status of the garage door remotely, so you can know it's closed. It displays a large green button if it's closed, which is red if it's open. It's barberpole-grey if it's in-between, and barberpole-red if there is a problem. You can tap the button to open or close the door.
+
+The setup app uses UPnP and zeroconf to automatically determine as much information as it can, so the Android configuration is just a couple taps.

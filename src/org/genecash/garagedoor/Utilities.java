@@ -23,18 +23,21 @@ public class Utilities {
 		try {
 			// Load local client certificate and key and server certificate
 			FileInputStream pkcs12in = ctx.openFileInput(GarageSettings.CERT_FILE);
-			SSLContext context = SSLContext.getInstance("TLS");
 			KeyStore keyStore = KeyStore.getInstance("PKCS12");
 			keyStore.load(pkcs12in, KEYSTORE_PASSWORD.toCharArray());
+
 			// Build a TrustManager, that trusts only the server certificate
 			TrustManagerFactory tmf = TrustManagerFactory.getInstance("X509");
 			KeyStore keyStoreCA = KeyStore.getInstance("BKS");
 			keyStoreCA.load(null, null);
 			keyStoreCA.setCertificateEntry("Server", keyStore.getCertificate("Server"));
 			tmf.init(keyStoreCA);
+
 			// Build a KeyManager for Client Authentication
 			KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
 			kmf.init(keyStore, null);
+
+			SSLContext context = SSLContext.getInstance("TLS");
 			context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 			return context.getSocketFactory();
 		} catch (Exception e) {
