@@ -10,7 +10,7 @@ It was inspired by Brad Fitzpatrick's work that he started in 2008, and the fact
 
 It uses a Raspberry Pi with the PiFace I/O board and a wi-fi dongle. The Pi should be running Raspbian. It uses SSL mutual authentication to control who can open the door. Only the Android app with the properly signed certificate can do it.
 
-Originally the approach was to connect to the Raspberry Pi over our home wi-fi. However, it takes forever to authorize and connect to the wi-fi network using WPA2, so what we do now is to connect over the cellular data network when our wi-fi network appears in a scan. The app is smart enough to turn the data connection on and off as necessary.
+Originally the approach was to connect to the Raspberry Pi over my home wi-fi. However, it takes forever to authorize and connect to the wi-fi network using WPA2, so what I do now is to connect over the cellular data network when my wi-fi network appears in a scan. The app is smart enough to turn the data connection on and off as necessary.
 
 When I'm getting ready to leave, there is an "away" app that opens the garage door, and then when I'm out of wi-fi range the Raspberry Pi automatically closes the door. If you change your mind, just run the app again to cancel it.
 
