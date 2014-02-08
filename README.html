@@ -20,8 +20,8 @@
       <a href="http://www.piface.org.uk/products/piface_digital/" target="_blank">PiFace I/O board</a> and a wi-fi dongle. The Pi should be running
       <a href="http://www.raspbian.org" target="_blank">Raspbian</a>. It uses SSL mutual authentication to control who can open the door. Only the Android app
       with the properly signed certificate can do it.</p>
-    <p>Originally the approach was to connect to the Raspberry Pi over our home wi-fi. However, it takes <i>forever</i> to authorize and connect to the wi-fi
-      network using WPA2, so what we do now is to connect over the cellular data network when our wi-fi network appears in a scan. The app is smart enough to turn
+    <p>Originally the approach was to connect to the Raspberry Pi over my home wi-fi. However, it takes <i>forever</i> to authorize and connect to the wi-fi
+      network using WPA2, so what I do now is to connect over the cellular data network when my wi-fi network appears in a scan. The app is smart enough to turn
       the data connection on and off as necessary.</p>
     <p>When I'm getting ready to leave, there is an "away" app that opens the garage door, and then when I'm out of wi-fi range the Raspberry Pi automatically
       closes the door. If you change your mind, just run the app again to cancel it.</p>
@@ -82,7 +82,7 @@
       507-AMS-9G which are AMSECO 505-90G devices.</p>
     <p>One end of each switch should be wired into the green connector nearest the RCA video jack. This is the 0-volt common ground. The other end of the
       "door-closed" switch should be connected to input "0" at the other end of the green connector. The "door-opened" switch should be connected next to it, in
-      input "1". (see wiring.png) These are the same inputs as the first 2 pushbuttons switches.</p>
+      input "1". These are the same inputs as the first 2 pushbuttons switches. Look at wiring.png, reed1.png, and reed2.png for details.</p>
     <p>To test things, run the following Python commands:</p>
     <code>
       >>> import pifacedigitalio<br>
