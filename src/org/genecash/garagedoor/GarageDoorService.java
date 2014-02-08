@@ -51,7 +51,7 @@ public class GarageDoorService extends IntentService {
 	Method getMobileDataEnabledMethod;
 	Method setMobileDataEnabledMethod;
 
-	private boolean done = false;
+	private boolean finished = true;
 	private SSLSocketFactory sslSocketFactory;
 
 	// the usual weird Java bullshit goin' on here
@@ -61,6 +61,9 @@ public class GarageDoorService extends IntentService {
 
 	@Override
 	protected void onHandleIntent(Intent intent) {
+		Log.i(TAG, "Service started");
+		finished = false;
+
 		// start in foreground so we don't get killed
 		// it also happens to provide an easy way to terminate by clicking the notification
 		notifyBuilder =
@@ -109,21 +112,24 @@ public class GarageDoorService extends IntentService {
 		broadcastReceiver = new BroadcastReceiver() {
 			@Override
 			public void onReceive(Context context, Intent intent) {
+				Log.i(TAG, "onReceive");
 				String action = intent.getAction();
 				if (action.equals(notificationAction)) {
 					// exit when notification clicked
-					done = true;
+					Log.i(TAG, "action.equals(notificationAction)");
+					finished = true;
 				}
 				if (action.equals(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION)) {
+					Log.i(TAG, "SCAN_RESULTS_AVAILABLE_ACTION");
 					for (ScanResult i : wifiManager.getScanResults()) {
 						if (i.SSID.equals(network)) {
+							Log.i(TAG, "network found");
 							// tell the Raspberry Pi to open the door
-							done = true;
 							new OpenDoor().execute();
 							break;
 						}
 					}
-					if (!done) {
+					if (!finished) {
 						try {
 							Thread.sleep(500);
 						} catch (InterruptedException e) {
@@ -160,8 +166,9 @@ public class GarageDoorService extends IntentService {
 			setDataEnabled(true);
 		}
 
+		Log.i(TAG, "start loop");
 		// busy work
-		while (!done) {
+		while (!finished) {
 			try {
 				Thread.sleep(1000);
 			} catch (InterruptedException e) {
@@ -172,6 +179,18 @@ public class GarageDoorService extends IntentService {
 		if (data && getDataEnabled()) {
 			setDataEnabled(false);
 		}
+		Log.i(TAG, "Service done");
+	}
+
+	// this will keep multiple startups from being enqueued
+	@Override
+	public void onStart(Intent intent, int startId) {
+		Log.i(TAG, "onStart");
+		if (!finished) {
+			Log.i(TAG, "onStart dropped");
+			return;
+		}
+		super.onStart(intent, startId);
 	}
 
 	@Override
@@ -198,18 +217,26 @@ public class GarageDoorService extends IntentService {
 	class OpenDoor extends AsyncTask<Void, String, Void> {
 		@Override
 		protected Void doInBackground(Void... params) {
+			Log.i(TAG, "OpenDoor");
 			String cmd = "OPEN\n";
-			try {
-				SSLSocket sock = (SSLSocket) sslSocketFactory.createSocket(host, port);
-				sock.setSoTimeout(2000);
-				BufferedReader br = new BufferedReader(new InputStreamReader(sock.getInputStream(), "ASCII"));
-				if (br.readLine().equals("GARAGEDOOR")) {
-					sock.getOutputStream().write(cmd.getBytes());
+			boolean done = false;
+			while (!done) {
+				try {
+					Log.i(TAG, "OpenDoor loop");
+					SSLSocket sock = (SSLSocket) sslSocketFactory.createSocket(host, port);
+					sock.setSoTimeout(500);
+					BufferedReader br = new BufferedReader(new InputStreamReader(sock.getInputStream(), "ASCII"));
+					if (br.readLine().equals("GARAGEDOOR")) {
+						sock.getOutputStream().write(cmd.getBytes());
+					}
+					done = br.readLine().equals("DONE");
+					Log.i(TAG, "OpenDoor done: " + done);
+					sock.close();
+				} catch (Exception e) {
+					Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
 				}
-				sock.close();
-			} catch (Exception e) {
-				Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
 			}
+			finished = true;
 			return null;
 		}
 	}

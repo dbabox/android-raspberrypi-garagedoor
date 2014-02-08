@@ -1,11 +1,5 @@
 #!/usr/bin/python
 
-# twistd --python /usr/local/bin/garagedoor.tac --syslog
-
-# TODO: make logging look better
-# TODO: make fail2ban work
-# TODO: Warning: No permission to delete pid file
-
 import os
 import sys
 import grp
@@ -21,9 +15,6 @@ from twisted.protocols.basic import LineReceiver
 
 # this is the port we listen on
 port=17000
-
-# tasks waiting for the user to leave
-awayTasks={}
 
 # toggle relay
 def press_button():
@@ -70,11 +61,19 @@ class GarageDoor(LineReceiver):
         if cmd == 'TOGGLE':
             # open/close the door immediately
             press_button()
+            self.sendLine('DONE')
             self.transport.loseConnection()
-        elif cmd == 'OPEN' or  cmd == 'CLOSE':
-            # set door to specific state
-            if status() != cmd:
+        elif cmd == 'OPEN':
+            # open door if it's closed
+            if status() == 'CLOSED':
                 press_button()
+            self.sendLine('DONE')
+            self.transport.loseConnection()
+        elif cmd == 'CLOSE':
+            # close door if it's open
+            if status() == 'OPEN':
+                press_button()
+            self.sendLine('DONE')
             self.transport.loseConnection()
         elif cmd == 'STATUS':
             # report current state of door until the remote closes connection
@@ -141,10 +140,16 @@ class GarageDoor(LineReceiver):
     # ban this IP from further communication
     def banhammer(self):
         log.err('Ban '+self.addr)
-        return
-        os.system('fail2ban-client set ssh banip '+self.addr)
-        # bug workaround
-        os.system('touch /var/log/auth.log')
+        # ban an IP with
+        # iptables -I INPUT -s 1.2.3.4 -j DROP
+        # view currently banned list with
+        # iptables -L INPUT -n --line-numbers
+        # un-ban IP listed on line #1
+        # iptables -D INPUT 1
+        os.system('sudo iptables -I INPUT -s '+self.addr+' -j DROP')
+
+# tasks waiting for the user to leave
+awayTasks={}
 
 # initialize PiFace board
 pifacedigital=pifacedigitalio.PiFaceDigital()

@@ -12,8 +12,8 @@ It uses a Raspberry Pi with the PiFace I/O board and a wi-fi dongle. The Pi shou
 
 Originally the approach was to connect to the Raspberry Pi over our home wi-fi. However, it takes forever to authorize and connect to the wi-fi network using WPA2, so what we do now is to connect over the cellular data network when our wi-fi network appears in a scan. The app is smart enough to turn the data connection on and off as necessary.
 
-When we're getting ready to leave, there is an "away" app that opens the garage door for us, and then when we're out of wi-fi range the Raspberry Pi automatically closes the door. If you change your mind, just run the app again to cancel it.
+When I'm getting ready to leave, there is an "away" app that opens the garage door, and then when I'm out of wi-fi range the Raspberry Pi automatically closes the door. If you change your mind, just run the app again to cancel it.
 
-You can also check the status of the garage door remotely, so you can know it's closed. It displays a large green button if it's closed, which is red if it's open. It's barberpole-grey if it's in-between, and barberpole-red if there is a problem. You can tap the button to open or close the door.
+You can also check the status of the garage door remotely, so you can know it's closed. It displays a large green button if it's closed, which turns to red if it's open. It's barberpole-grey if it's in-between, and barberpole-red if there is a problem. You can tap the button to open or close the door.
 
 The setup app uses UPnP and zeroconf to automatically determine as much information as it can, so the Android configuration is just a couple taps.

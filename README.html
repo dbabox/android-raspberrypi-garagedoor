@@ -23,35 +23,34 @@
     <p>Originally the approach was to connect to the Raspberry Pi over our home wi-fi. However, it takes <i>forever</i> to authorize and connect to the wi-fi
       network using WPA2, so what we do now is to connect over the cellular data network when our wi-fi network appears in a scan. The app is smart enough to turn
       the data connection on and off as necessary.</p>
-    <p>When we're getting ready to leave, there is an "away" app that opens the garage door for us, and then when we're out of wi-fi range the Raspberry Pi
-      automatically closes the door. If you change your mind, just run the app again to cancel it.</p>
-    <p>You can also check the status of the garage door remotely, so you can know it's closed. It displays a large green button if it's closed, which is red if
-      it's open. It's barberpole-grey if it's in-between, and barberpole-red if there is a problem. You can tap the button to open or close the door.</p>
+    <p>When I'm getting ready to leave, there is an "away" app that opens the garage door, and then when I'm out of wi-fi range the Raspberry Pi automatically
+      closes the door. If you change your mind, just run the app again to cancel it.</p>
+    <p>You can also check the status of the garage door remotely, so you can know it's closed. It displays a large green button if it's closed, which turns to
+      red if it's open. It's barberpole-grey if it's in-between, and barberpole-red if there is a problem. You can tap the button to open or close the door.</p>
     <p>The setup app uses UPnP and zeroconf to automatically determine as much information as it can, so the Android configuration is just a couple taps.</p>
     <h3>To quickly set up the Raspberry Pi:</h3>
     <p>(you'll need to do most of this as root)</p>
     <ol>
-      <li>Change the hostname to "garagedoor" in raspi-config</li>
-      <li>Get the most current list of the latest Raspbian packages by running<br>
+      <li>Change the hostname to "garagedoor" in raspi-config.</li>
+      <li>Get the most current list of the latest Raspbian packages by running:<br>
         <code>apt-get update</code></li>
-      <li>Install the software packages you need by running<br>
-        <code>apt-get install avahi-daemon fail2ban python-pifacedigitalio python-twisted</code></li>
-      <li>Copy the garagedoor.service file to /etc/avahi/services</li>
-      <li>Copy the jail.local file to /etc/fail2ban</li>
-      <li>Create the script user by running<br>
+      <li>Install the software packages you need by running:<br>
+        <code>apt-get install avahi-daemon python-pifacedigitalio python-twisted</code></li>
+      <li>Copy the garagedoor.service file to /etc/avahi/services.</li>
+      <li>Create the script user by running:<br>
         <code>adduser --system garagedoor</code></li>
-      <li>Add the script user to the proper groups (so he can see the PiFace devices) by running<br>
+      <li>Add the script user to the proper groups (so he can see the PiFace devices) by running:<br>
         <code>adduser garagedoor spi</code><br>
         <code>adduser garagedoor gpio</code></li>
-      <li>Copy the garagedoor.tac file to /usr/local/bin</li>
-      <li>Set the proper permissions by running<br>
+      <li>Copy the garagedoor.tac file to /usr/local/bin.</li>
+      <li>Set the proper permissions by running:<br>
         <code>chmod ugo=r /usr/local/bin/garagedoor.tac</code></li>
-      <li>Assign it to the script user by running<br>
+      <li>Assign it to the script user by running:<br>
         <code>chown garagedoor:nogroup /usr/local/bin/garagedoor.tac</code></li>
       <li>Install a wi-fi dongle as per the HOWTOs on the 'net, like
         <a href="https://learn.sparkfun.com/tutorials/using-pcduinos-wifi-dongle-with-the-pi" target="_blank">this one from SparkFun</a>. You will most probably
         need a powered USB hub for it, as most dongles are extremely power-hungry.</li>
-      <li>Start the daemon with<br>
+      <li>Start the daemon with:<br>
         <code>twistd --python /usr/local/bin/garagedoor.tac --syslog</code></li>
     </ol>
     <h3>Local network setup</h3>
@@ -66,8 +65,8 @@
     </ul>
     <h3>Setting up the ability to open/close the garage door</h3>
     <p>One of the relays on the PiFace board is connected to the opener simulating a button. You can connect it in parallel with the real pushbuttons.</p>
-    <p>The wires should be inserted in the two relay contacts nearest the jumper, and connected to where you need to connect switches on your opener. I used
-    plain 22-gauge stranded 2-conductor speaker wire.</p>
+    <p>The wires should be inserted in the two relay contacts nearest the Rasberry Pi connector (see wiring.png) and connected to where you need to connect switches on your
+    opener. I used plain 22-gauge stranded 2-conductor speaker wire.</p>
     <p>To test things, run the following Python commands:</p>
     <code>
       >>> import time, pifacedigitalio<br>
@@ -81,7 +80,9 @@
       the garage opener rail, and placed magnets on the slider so that the reed switches activate when the slider reaches the open or closed positions. These
       reed switches are connected to the digital inputs on the PiFace board. I used <a href="http://mouser.com/" target="_blank">Mouser Electronics</a> part
       507-AMS-9G which are AMSECO 505-90G devices.</p>
-    <p>The switch wires should be inserted ?how?</p>
+    <p>One end of each switch should be wired into the green connector nearest the RCA video jack. This is the 0-volt common ground. The other end of the
+      "door-closed" switch should be connected to input "0" at the other end of the green connector. The "door-opened" switch should be connected next to it, in
+      input "1". (see wiring.png) These are the same inputs as the first 2 pushbuttons switches.</p>
     <p>To test things, run the following Python commands:</p>
     <code>
       >>> import pifacedigitalio<br>
@@ -94,7 +95,8 @@
     <p>Obviously the garage door needs to be secure. It's protected by SSL mutual authentication, where not only does the phone authenticate the server, but the
        phone presents a certificate to prove it's authorized.</p>
     <p>Here are the steps to generate two self-signed X.509 certificates. This will generate two new RSA 2048 bit keys, generate two self signed certificates,
-    and bundle the client certificate with the corresponding private key, and the server's public certificate in a PKCS#12 container file.</p>
+    and bundle the client certificate with the corresponding private key, and the server's public certificate in a PKCS#12 container file. These certificates
+    will be valid for 10 years (3650 days).</p>
     <code>
       OPENSSL_OPTS="-new -newkey rsa:2048 -nodes -days 3650 -x509"<br>
       openssl req -keyout key-server.pem -subj "/CN=server" -out cert-server.pem $OPENSSL_OPTS<br>
@@ -131,12 +133,12 @@
       realizing that it was no security at all. They said "Great! Thanks for the wonderful answer. Now my code can connect. I'm done!"</p>
     <p>If Google feels that writing such a tutorial is some sort of legal risk, they could keep it on their servers and not make it part of the SDK
       documentation download. If they found an error or something misleading, it would still be under their control and they could instantly rewrite or remove
-      the problem.</p>
+      the problem. They have no excuse for not putting this information out there.</p>
     <p>This stuff is difficult, and Android developers need help.</p>
     <h3>History</h3>
     <p>I originally started off with a very simple Python script run by inetd, about 09-JAN-2014. I realized I really needed SSL authentication, so I used
-      stunnel as an inetd wrapper, then as a full daemon. This is how I got SSL client authentication working, which is really difficult in Android. Performance
-      was horrible due to the SSL server initialization time, so I rewrote it using the Twisted framework. The first "production" version was 03-FEB-2014.</p>
+      stunnel as an inetd wrapper, then as a full daemon. This is how I got SSL client authentication working. Performance was horrible due to the SSL
+      initialization time, so I rewrote it as a standalone daemon using the Twisted framework. The first "production" version was 03-FEB-2014.</p>
     <h3>Other notes</h3>
     <p>I originally intended to use an Arduino, but a wi-fi shield was $85! The other killer factor was that all the I/O shields were kits and I'm really crap
       at soldering.</p>
