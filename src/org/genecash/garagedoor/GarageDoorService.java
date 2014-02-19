@@ -51,8 +51,10 @@ public class GarageDoorService extends IntentService {
 	Method getMobileDataEnabledMethod;
 	Method setMobileDataEnabledMethod;
 
-	private boolean finished = true;
+	private boolean done = true;
 	private SSLSocketFactory sslSocketFactory;
+	public SSLSocket sock;
+	public BufferedReader buffRdr;
 
 	// the usual weird Java bullshit goin' on here
 	public GarageDoorService() {
@@ -61,8 +63,8 @@ public class GarageDoorService extends IntentService {
 
 	@Override
 	protected void onHandleIntent(Intent intent) {
-		Log.i(TAG, "Service started");
-		finished = false;
+		Log.i(TAG, "service started");
+		done = false;
 
 		// start in foreground so we don't get killed
 		// it also happens to provide an easy way to terminate by clicking the notification
@@ -95,7 +97,7 @@ public class GarageDoorService extends IntentService {
 			Field iConnectivityManagerField = conmanClass.getDeclaredField("mService");
 			iConnectivityManagerField.setAccessible(true);
 			iConnectivityManager = iConnectivityManagerField.get(conman);
-			Class iConnectivityManagerClass = Class.forName(iConnectivityManager.getClass().getName());
+			Class<?> iConnectivityManagerClass = Class.forName(iConnectivityManager.getClass().getName());
 
 			setMobileDataEnabledMethod = iConnectivityManagerClass.getDeclaredMethod("setMobileDataEnabled", Boolean.TYPE);
 			setMobileDataEnabledMethod.setAccessible(true);
@@ -116,20 +118,25 @@ public class GarageDoorService extends IntentService {
 				String action = intent.getAction();
 				if (action.equals(notificationAction)) {
 					// exit when notification clicked
-					Log.i(TAG, "action.equals(notificationAction)");
-					finished = true;
+					Log.i(TAG, "exit when notification clicked");
+					done = true;
 				}
 				if (action.equals(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION)) {
-					Log.i(TAG, "SCAN_RESULTS_AVAILABLE_ACTION");
+					Log.i(TAG, "scan results available");
 					for (ScanResult i : wifiManager.getScanResults()) {
 						if (i.SSID.equals(network)) {
 							Log.i(TAG, "network found");
 							// tell the Raspberry Pi to open the door
-							new OpenDoor().execute();
+							try {
+								OpenDoor task = new OpenDoor();
+								task.execute();
+								task.get();
+							} catch (Exception e) {
+							}
 							break;
 						}
 					}
-					if (!finished) {
+					if (!done) {
 						try {
 							Thread.sleep(500);
 						} catch (InterruptedException e) {
@@ -166,9 +173,17 @@ public class GarageDoorService extends IntentService {
 			setDataEnabled(true);
 		}
 
+		// connect to Raspberry Pi over mobile data
+		try {
+			Connect task = new Connect();
+			task.execute();
+			task.get();
+		} catch (Exception e) {
+		}
+
 		Log.i(TAG, "start loop");
 		// busy work
-		while (!finished) {
+		while (!done) {
 			try {
 				Thread.sleep(1000);
 			} catch (InterruptedException e) {
@@ -179,14 +194,14 @@ public class GarageDoorService extends IntentService {
 		if (data && getDataEnabled()) {
 			setDataEnabled(false);
 		}
-		Log.i(TAG, "Service done");
+		Log.i(TAG, "service done");
 	}
 
 	// this will keep multiple startups from being enqueued
 	@Override
 	public void onStart(Intent intent, int startId) {
 		Log.i(TAG, "onStart");
-		if (!finished) {
+		if (!done) {
 			Log.i(TAG, "onStart dropped");
 			return;
 		}
@@ -195,58 +210,73 @@ public class GarageDoorService extends IntentService {
 
 	@Override
 	public void onDestroy() {
-		cleanShutdown();
+		unregisterReceiver(broadcastReceiver);
+
 		if (wifiLock.isHeld()) {
 			wifiLock.release();
 		}
+
 		// must be done as the very last piece of code
 		if (cpuLock.isHeld()) {
 			cpuLock.release();
 		}
+
 		super.onDestroy();
 	}
 
-	void cleanShutdown() {
-		try {
-			unregisterReceiver(broadcastReceiver);
-		} catch (Exception e) {
-		}
-	}
-
-	// talk to the network in a separate thread
-	class OpenDoor extends AsyncTask<Void, String, Void> {
+	// SSL connection takes a very long time (3 or 4 seconds) so we do it at startup
+	// a nice side-effect is that it keeps the data connection awake
+	class Connect extends AsyncTask<Void, String, Integer> {
 		@Override
-		protected Void doInBackground(Void... params) {
-			Log.i(TAG, "OpenDoor");
-			String cmd = "OPEN\n";
-			boolean done = false;
-			while (!done) {
+		protected Integer doInBackground(Void... params) {
+			boolean connected = false;
+			Log.i(TAG, "Connect doInBackground");
+			while (!connected && !done) {
 				try {
-					Log.i(TAG, "OpenDoor loop");
-					SSLSocket sock = (SSLSocket) sslSocketFactory.createSocket(host, port);
-					sock.setSoTimeout(500);
-					BufferedReader br = new BufferedReader(new InputStreamReader(sock.getInputStream(), "ASCII"));
-					if (br.readLine().equals("GARAGEDOOR")) {
-						sock.getOutputStream().write(cmd.getBytes());
-					}
-					done = br.readLine().equals("DONE");
-					Log.i(TAG, "OpenDoor done: " + done);
-					sock.close();
+					sock = (SSLSocket) sslSocketFactory.createSocket(host, port);
+					sock.setSoTimeout(2000);
+					buffRdr = new BufferedReader(new InputStreamReader(sock.getInputStream(), "ASCII"));
+					connected = buffRdr.readLine().equals("GARAGEDOOR");
 				} catch (Exception e) {
-					Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
+					// we will normally have a couple exceptions before the network comes completely up
+					try {
+						Thread.sleep(2000);
+					} catch (InterruptedException e1) {
+					}
 				}
 			}
-			finished = true;
-			return null;
+			Log.i(TAG, "Connect done");
+			return 0;
 		}
 	}
 
-	// discover if mobile data connection is enabled
+	// bang out the command to open the door
+	class OpenDoor extends AsyncTask<Void, String, Integer> {
+		@Override
+		protected Integer doInBackground(Void... params) {
+			Log.i(TAG, "OpenDoor doInBackground");
+			String cmd = "OPEN\n";
+			try {
+				sock.getOutputStream().write(cmd.getBytes());
+				done = buffRdr.readLine().equals("DONE");
+				sock.close();
+			} catch (Exception e) {
+				Log.e(TAG, "OpenDoor Exception: " + Log.getStackTraceString(e));
+				try {
+					Thread.sleep(500);
+				} catch (InterruptedException e1) {
+				}
+			}
+			Log.i(TAG, "OpenDoor done: " + done);
+			return 0;
+		}
+	}
+
 	public boolean getDataEnabled() {
 		try {
 			return (Boolean) getMobileDataEnabledMethod.invoke(iConnectivityManager);
 		} catch (Exception e) {
-			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
+			Log.e(TAG, "getDataEnabled Exception: " + Log.getStackTraceString(e));
 		}
 		return false;
 	}
@@ -255,7 +285,7 @@ public class GarageDoorService extends IntentService {
 		try {
 			setMobileDataEnabledMethod.invoke(iConnectivityManager, value);
 		} catch (Exception e) {
-			Log.e(TAG, "Exception: " + Log.getStackTraceString(e));
+			Log.e(TAG, "setDataEnabled Exception: " + Log.getStackTraceString(e));
 		}
 	}
 }

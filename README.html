@@ -7,18 +7,18 @@
   </head>
   <body>
     <h1>Hands-free garage door operation using a Raspberry Pi and an Android phone</h1>
-    <p>From the <a href="https://github.com/CrashCash/android-raspberrypi-garagedoor" target="_blank">android-raspberrypi-garagedoor</a> Git repository on
+    <p>From the <a target="_blank" href="https://github.com/CrashCash/android-raspberrypi-garagedoor">android-raspberrypi-garagedoor</a> Git repository on
       GitHub</p>
     <p>I ride a motorcycle, and garage door remotes don't last very long out in the elements, even if you can find a good place to mount one on your bike and
       you're willing to put up with the hassle.</p>
     <p>This system automatically opens the garage door when I come home. The user only has to remember to start the Android app before riding home. When you
       arrive home and it sees your personal wi-fi network, it asks the Raspberry Pi to open the garage door so you can drive right in without fiddling with
       anything.</p>
-    <p>It was inspired by <a href="http://brad.livejournal.com/2394220.html" target="_blank">Brad Fitzpatrick's work</a> that he started in 2008, and the fact
+    <p>It was inspired by <a target="_blank" href="http://brad.livejournal.com/2394220.html">Brad Fitzpatrick's work</a> that he started in 2008, and the fact
       that my Flash2Pass stopped working.</p>
-    <p>It uses a <a href="http://www.raspberrypi.org/" target="_blank">Raspberry Pi</a> with the
-      <a href="http://www.piface.org.uk/products/piface_digital/" target="_blank">PiFace I/O board</a> and a wi-fi dongle. The Pi should be running
-      <a href="http://www.raspbian.org" target="_blank">Raspbian</a>. It uses SSL mutual authentication to control who can open the door. Only the Android app
+    <p>It uses a <a target="_blank" href="http://www.raspberrypi.org/">Raspberry Pi</a> with the
+      <a target="_blank" href="http://www.piface.org.uk/products/piface_digital/">PiFace I/O board</a> and a wi-fi dongle. The Pi should be running
+      <a target="_blank" href="http://www.raspbian.org">Raspbian</a>. It uses SSL mutual authentication to control who can open the door. Only the Android app
       with the properly signed certificate can do it.</p>
     <p>Originally the approach was to connect to the Raspberry Pi over my home wi-fi. However, it takes <i>forever</i> to authorize and connect to the wi-fi
       network using WPA2, so what I do now is to connect over the cellular data network when my wi-fi network appears in a scan. The app is smart enough to turn
@@ -38,7 +38,7 @@
         <code>apt-get install avahi-daemon python-pifacedigitalio python-twisted</code></li>
       <li>Copy the garagedoor.service file to /etc/avahi/services.</li>
       <li>Create the script user by running:<br>
-        <code>adduser --system garagedoor</code></li>
+        <code>adduser --system --shell /bin/sh garagedoor</code></li>
       <li>Add the script user to the proper groups (so he can see the PiFace devices) by running:<br>
         <code>adduser garagedoor spi</code><br>
         <code>adduser garagedoor gpio</code></li>
@@ -48,7 +48,7 @@
       <li>Assign it to the script user by running:<br>
         <code>chown garagedoor:nogroup /usr/local/bin/garagedoor.tac</code></li>
       <li>Install a wi-fi dongle as per the HOWTOs on the 'net, like
-        <a href="https://learn.sparkfun.com/tutorials/using-pcduinos-wifi-dongle-with-the-pi" target="_blank">this one from SparkFun</a>. You will most probably
+        <a target="_blank" href="https://learn.sparkfun.com/tutorials/using-pcduinos-wifi-dongle-with-the-pi">this one from SparkFun</a>. You will most probably
         need a powered USB hub for it, as most dongles are extremely power-hungry.</li>
       <li>Start the daemon with:<br>
         <code>twistd --python /usr/local/bin/garagedoor.tac --syslog</code></li>
@@ -59,8 +59,8 @@
         router configuration webpages.</li>
       <li>Assign the Raspberry Pi a reserved DHCP address. Your router will have a screen somewhere to say "this IP address is reserved for that MAC
         address".</li>
-      <li>Open a port in the firewall and forward it to the Raspberry Pi's address and port 17000. This lets the phone to connect over the internet. Remember
-        this port number so you can enter it in the setup app.</li>
+      <li>Open a port in the firewall and forward it to the Raspberry Pi's address and port 17000. This lets the phone connect over the internet. Remember this
+        port number so you can enter it in the setup app.</li>
       <li>You should run avahi-daemon on your Linux box to resolve "garagedoor.local" for ssh, but this is usually already the case with Debian and Ubuntu.</li>
     </ul>
     <h3>Setting up the ability to open/close the garage door</h3>
@@ -75,10 +75,10 @@
     </code>
     <p>The garage door should open, or you should at least hear a click from the relay.</p>
     <h3>Setting up the ability to sense if the door is opened or closed</h3>
-    <p><a href="http://en.wikipedia.org/wiki/Reed_switch" target="_blank">Reed switches</a> are
-      <a href="http://www.reed-switch-info.com/" target="_blank">small devices</a> that close a contact when a magnet is brought near. I mounted two of them on
+    <p><a target="_blank" href="http://en.wikipedia.org/wiki/Reed_switch">Reed switches</a> are
+      <a target="_blank" href="http://www.reed-switch-info.com/">small devices</a> that close a contact when a magnet is brought near. I mounted two of them on
       the garage opener rail, and placed magnets on the slider so that the reed switches activate when the slider reaches the open or closed positions. These
-      reed switches are connected to the digital inputs on the PiFace board. I used <a href="http://mouser.com/" target="_blank">Mouser Electronics</a> part
+      reed switches are connected to the digital inputs on the PiFace board. I used <a target="_blank" href="http://mouser.com/">Mouser Electronics</a> part
       507-AMS-9G which are AMSECO 505-90G devices.</p>
     <p>One end of each switch should be wired into the green connector nearest the RCA video jack. This is the 0-volt common ground. The other end of the
       "door-closed" switch should be connected to input "0" at the other end of the green connector. The "door-opened" switch should be connected next to it, in
@@ -93,7 +93,7 @@
     <p>This should print a "1" if the door is closed, or "2" if it's open. It should print "0" only if the door is neither open nor closed.</p>
     <h3>Security and generating the SSL certificates</h3>
     <p>Obviously the garage door needs to be secure. It's protected by SSL mutual authentication, where not only does the phone authenticate the server, but the
-       phone presents a certificate to prove it's authorized.</p>
+       phone presents a certificate to prove it's authorized. This turned out to be the hardest part of the project.</p>
     <p>Here are the steps to generate two self-signed X.509 certificates. This will generate two new RSA 2048 bit keys, generate two self signed certificates,
     and bundle the client certificate with the corresponding private key, and the server's public certificate in a PKCS#12 container file. These certificates
     will be valid for 10 years (3650 days).</p>
@@ -118,19 +118,24 @@
       </li>
     </ul>
     <h3>Credits</h3>
-    <p>The setup app uses the <a href="http://sourceforge.net/projects/upnplibmobile" target="_blank">UPNPLib-mobile library</a> created by "suggam", which in
+    <p>The setup app uses the <a target="_blank" href="http://sourceforge.net/projects/upnplibmobile">UPNPLib-mobile library</a> created by "suggam", which in
       turn is a port of the abandoned UPNPLib project developed by "sbbi". Grateful thanks to whoever these guys are.</p>
     <h3>Brickbats</h3>
     <p>Since security is so important in mobile apps, it would really behoove Google to write training docs on how to code SSL, and how to generate the
       keys. It'd be icing on the cake if they covered mutual authentication for non-HTTPS applications. The Twisted guys can do it for Python, why can't Google
       do it for Java?</p>
     <p>I spent six days searching Google and Bing, and I found only
-      <a href="https://www.datenzone.de/blog/2012/01/using-ssltls-client-certificate-authentification-in-android-applications/" target="_blank">one answer</a>
+      <a target="_blank" href="https://www.datenzone.de/blog/2012/01/using-ssltls-client-certificate-authentification-in-android-applications/">one answer</a>
       that showed how to implement mutual authentication properly, and more importantly, showed how to generate the certificates. Even this answer doesn't
       explain how it works, it just shows a couple blocks of code and OpenSSL commands.</p>
     <p><i>Every single one</i> of the StackOverflow answers were "here's how to accept <u>every</u> certificate" which makes implementing SSL a waste of time if
       you're just going to let everybody in. Worse, the responses indicated the coder was going to use it without question, in production code, and without
       realizing that it was no security at all. They said "Great! Thanks for the wonderful answer. Now my code can connect. I'm done!"</p>
+    <p>This is like a door lock letting any key open it. That's obviously not secure.</p>
+    <p>A real life example is "<a target="_blank" href="http://www.theregister.co.uk/2014/02/19/wemo_home_automation_is_insecure_ioactive/">Nasty holes found in
+        Belkin's home automation kit</a>" and another one is "<a target="_blank" href="http://www.theregister.co.uk/2014/02/14/fake_ssl_cert_peril/">Thought mobe
+        banking apps were safe from nasties? THINK AGAIN - Fake SSL certs let cybercrooks hoover up login creds and redirect transactions</a>". Both of these
+        are where supposedly SSL-secured devices blindly accepted any SSL certificates whatsoever.</p>
     <p>If Google feels that writing such a tutorial is some sort of legal risk, they could keep it on their servers and not make it part of the SDK
       documentation download. If they found an error or something misleading, it would still be under their control and they could instantly rewrite or remove
       the problem. They have no excuse for not putting this information out there.</p>
@@ -138,12 +143,13 @@
     <h3>History</h3>
     <p>I originally started off with a very simple Python script run by inetd, about 09-JAN-2014. I realized I really needed SSL authentication, so I used
       stunnel as an inetd wrapper, then as a full daemon. This is how I got SSL client authentication working. Performance was horrible due to the SSL
-      initialization time, so I rewrote it as a standalone daemon using the Twisted framework. The first "production" version was 03-FEB-2014.</p>
+      initialization time, so I rewrote it as a standalone daemon using the Twisted framework. The first "production" version was 03-FEB-2014. I had a version I
+      was satisfied with on 19-FEB-2014.</p>
     <h3>Other notes</h3>
     <p>I originally intended to use an Arduino, but a wi-fi shield was $85! The other killer factor was that all the I/O shields were kits and I'm really crap
       at soldering.</p>
     <p>I thought all the Raspberry Pi buzz was just the usual internet hype, so I never really considered one, but for $35, it was too good to pass up. The
-      <a href="http://makezine.com" target="_blank"><i>MAKE Magazine</i></a> microcontroller guide basically flat out said "out of the dozen boards in this
+      <a target="_blank" href="http://makezine.com"><i>MAKE Magazine</i></a> microcontroller guide basically flat out said "out of the dozen boards in this
       roundup, this or the Arduino are your two good choices" and that was a deciding factor.</p>
     <p>It's amazing that it's a full Debian machine not too far behind my previous generation desktop PC.</p>
   </body>

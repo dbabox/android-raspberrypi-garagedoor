@@ -2,8 +2,8 @@
 <manifest
     xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.genecash.garagedoor"
-    android:versionCode="1391551678"
-    android:versionName="04-FEB-2014 05:07:58 PM">
+    android:versionCode="1392790695"
+    android:versionName="19-FEB-2014 01:18:15 AM">
     <uses-sdk
         android:minSdkVersion="17"
         android:targetSdkVersion="17" />
@@ -16,7 +16,9 @@
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <application android:allowBackup="false">
+    <application
+        android:allowBackup="false"
+        android:icon="@drawable/toggle_app">
         <activity
             android:name="GarageStatus"
             android:label="Garage Status"
