@@ -2,8 +2,8 @@
 <manifest
     xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.genecash.garagedoor"
-    android:versionCode="1392790695"
-    android:versionName="19-FEB-2014 01:18:15 AM">
+    android:versionCode="1393004136"
+    android:versionName="21-FEB-2014 12:35:36 PM">
     <uses-sdk
         android:minSdkVersion="17"
         android:targetSdkVersion="17" />
@@ -18,7 +18,8 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <application
         android:allowBackup="false"
-        android:icon="@drawable/toggle_app">
+        android:icon="@drawable/toggle_app"
+        android:label="Garage Door">
         <activity
             android:name="GarageStatus"
             android:label="Garage Status"
@@ -42,8 +43,8 @@
         </activity>
         <activity
             android:name="GarageDoor"
-            android:label="Garage Door"
-            android:icon="@drawable/toggle_app"
+            android:label="Garage Open"
+            android:icon="@drawable/open_app"
             android:theme="@android:style/Theme.NoDisplay"
             android:launchMode="singleInstance">
             <intent-filter>
@@ -54,7 +55,7 @@
         <activity
             android:name="GarageAway"
             android:label="Garage Away"
-            android:icon="@drawable/close_app"
+            android:icon="@drawable/away_app"
             android:theme="@android:style/Theme.NoDisplay"
             android:launchMode="singleInstance">
             <intent-filter android:path="foo">
