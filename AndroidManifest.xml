@@ -2,8 +2,8 @@
 <manifest
     xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.genecash.garagedoor"
-    android:versionCode="1393004136"
-    android:versionName="21-FEB-2014 12:35:36 PM">
+    android:versionCode="1393198445"
+    android:versionName="23-FEB-2014 06:34:05 PM">
     <uses-sdk
         android:minSdkVersion="17"
         android:targetSdkVersion="17" />
@@ -18,7 +18,7 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <application
         android:allowBackup="false"
-        android:icon="@drawable/toggle_app"
+        android:icon="@drawable/open_app"
         android:label="Garage Door">
         <activity
             android:name="GarageStatus"

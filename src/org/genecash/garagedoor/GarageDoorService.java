@@ -72,7 +72,7 @@ public class GarageDoorService extends IntentService {
 				new Notification.Builder(this)
 						.setContentTitle("Garage Door Opener")
 						.setContentText("Waiting to connect")
-						.setSmallIcon(R.drawable.toggle_app)
+						.setSmallIcon(R.drawable.open_app)
 						.setContentIntent(
 								PendingIntent.getBroadcast(this, 0, new Intent(notificationAction), PendingIntent.FLAG_UPDATE_CURRENT));
 		notification = notifyBuilder.build();
@@ -127,12 +127,7 @@ public class GarageDoorService extends IntentService {
 						if (i.SSID.equals(network)) {
 							Log.i(TAG, "network found");
 							// tell the Raspberry Pi to open the door
-							try {
-								OpenDoor task = new OpenDoor();
-								task.execute();
-								task.get();
-							} catch (Exception e) {
-							}
+							doTask(new OpenDoor());
 							break;
 						}
 					}
@@ -174,18 +169,14 @@ public class GarageDoorService extends IntentService {
 		}
 
 		// connect to Raspberry Pi over mobile data
-		try {
-			Connect task = new Connect();
-			task.execute();
-			task.get();
-		} catch (Exception e) {
-		}
+		doTask(new Connect());
 
 		Log.i(TAG, "start loop");
 		// busy work
 		while (!done) {
+			doTask(new Ping());
 			try {
-				Thread.sleep(1000);
+				Thread.sleep(10 * 1000);
 			} catch (InterruptedException e) {
 			}
 		}
@@ -195,6 +186,15 @@ public class GarageDoorService extends IntentService {
 			setDataEnabled(false);
 		}
 		Log.i(TAG, "service done");
+	}
+
+	public void doTask(AsyncTask<Void, String, Integer> task) {
+		try {
+			task.execute();
+			task.get();
+		} catch (Exception e) {
+			Log.e(TAG, "doTask Exception: " + Log.getStackTraceString(e));
+		}
 	}
 
 	// this will keep multiple startups from being enqueued
@@ -240,7 +240,7 @@ public class GarageDoorService extends IntentService {
 				} catch (Exception e) {
 					// we will normally have a couple exceptions before the network comes completely up
 					try {
-						Thread.sleep(2000);
+						Thread.sleep(2 * 1000);
 					} catch (InterruptedException e1) {
 					}
 				}
@@ -268,6 +268,27 @@ public class GarageDoorService extends IntentService {
 				}
 			}
 			Log.i(TAG, "OpenDoor done: " + done);
+			return 0;
+		}
+	}
+
+	// keep the data connection awake
+	class Ping extends AsyncTask<Void, String, Integer> {
+		@Override
+		protected Integer doInBackground(Void... params) {
+			Log.i(TAG, "Ping doInBackground");
+			String cmd = "PING\n";
+			try {
+				sock.getOutputStream().write(cmd.getBytes());
+			} catch (Exception e) {
+				Log.e(TAG, "Ping Exception: " + Log.getStackTraceString(e));
+				try {
+					Thread.sleep(500);
+					doTask(new Connect());
+				} catch (InterruptedException e1) {
+				}
+			}
+			Log.i(TAG, "Ping done: " + done);
 			return 0;
 		}
 	}

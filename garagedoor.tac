@@ -47,6 +47,7 @@ class GarageDoor(LineReceiver):
         self.sendLine('GARAGEDOOR')
 
     def connectionLost(self, reason):
+        log.msg('Connection lost: '+self.addr)
         if self.statusTask:
             self.statusTask.stop()
 
@@ -95,10 +96,12 @@ class GarageDoor(LineReceiver):
             self.transport.loseConnection()
             self.ctr=0
             awayTasks[self.addr]=task.LoopingCall(self.away)
-            awayTasks[self.addr].start(0.5)
+            awayTasks[self.addr].start(1)
+        elif cmd == 'PING':
+            pass
         else:
             # unknown command
-            log.error('Unknown command from: '+self.addr)
+            log.msg('Unknown command from: '+self.addr)
             self.transport.loseConnection()
 
     # periodic task to report current state of door
@@ -122,7 +125,7 @@ class GarageDoor(LineReceiver):
             self.ctr+=1
 
         # we've lost contact
-        if self.ctr > 5:
+        if self.ctr > 3:
             # stop executing
             awayTasks[self.addr].stop()
             del awayTasks[self.addr]
