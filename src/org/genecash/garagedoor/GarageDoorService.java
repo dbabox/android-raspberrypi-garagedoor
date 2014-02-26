@@ -132,10 +132,7 @@ public class GarageDoorService extends IntentService {
 						}
 					}
 					if (!done) {
-						try {
-							Thread.sleep(500);
-						} catch (InterruptedException e) {
-						}
+						sleep(500);
 						// kick off another scan
 						wifiManager.startScan();
 					}
@@ -173,12 +170,13 @@ public class GarageDoorService extends IntentService {
 
 		Log.i(TAG, "start loop");
 		// busy work
+		int ctr = 0;
 		while (!done) {
-			doTask(new Ping());
-			try {
-				Thread.sleep(10 * 1000);
-			} catch (InterruptedException e) {
+			if (ctr++ > 20) {
+				doTask(new Ping());
+				ctr = 0;
 			}
+			sleep(500);
 		}
 
 		// turn off data if we turned it on
@@ -224,6 +222,14 @@ public class GarageDoorService extends IntentService {
 		super.onDestroy();
 	}
 
+	// sleep w/o the stupidass useless exception crap
+	public void sleep(long time) {
+		try {
+			Thread.sleep(time);
+		} catch (InterruptedException e) {
+		}
+	}
+
 	// SSL connection takes a very long time (3 or 4 seconds) so we do it at startup
 	// a nice side-effect is that it keeps the data connection awake
 	class Connect extends AsyncTask<Void, String, Integer> {
@@ -239,10 +245,7 @@ public class GarageDoorService extends IntentService {
 					connected = buffRdr.readLine().equals("GARAGEDOOR");
 				} catch (Exception e) {
 					// we will normally have a couple exceptions before the network comes completely up
-					try {
-						Thread.sleep(2 * 1000);
-					} catch (InterruptedException e1) {
-					}
+					sleep(2 * 1000);
 				}
 			}
 			Log.i(TAG, "Connect done");
@@ -262,10 +265,7 @@ public class GarageDoorService extends IntentService {
 				sock.close();
 			} catch (Exception e) {
 				Log.e(TAG, "OpenDoor Exception: " + Log.getStackTraceString(e));
-				try {
-					Thread.sleep(500);
-				} catch (InterruptedException e1) {
-				}
+				sleep(500);
 			}
 			Log.i(TAG, "OpenDoor done: " + done);
 			return 0;
@@ -282,13 +282,10 @@ public class GarageDoorService extends IntentService {
 				sock.getOutputStream().write(cmd.getBytes());
 			} catch (Exception e) {
 				Log.e(TAG, "Ping Exception: " + Log.getStackTraceString(e));
-				try {
-					Thread.sleep(500);
-					doTask(new Connect());
-				} catch (InterruptedException e1) {
-				}
+				sleep(500);
+				doTask(new Connect());
 			}
-			Log.i(TAG, "Ping done: " + done);
+			Log.i(TAG, "Ping done");
 			return 0;
 		}
 	}
