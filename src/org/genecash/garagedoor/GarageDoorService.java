@@ -38,7 +38,7 @@ public class GarageDoorService extends IntentService {
 	// notifications
 	private Notification notification;
 	private Builder notifyBuilder;
-	private String notificationAction = "org.genecash.garagedoor.EXIT";
+	private String notificationAction = "org.genecash.garagedoor.exit";
 
 	// settings
 	private String network;
@@ -56,7 +56,7 @@ public class GarageDoorService extends IntentService {
 	public SSLSocket sock;
 	public BufferedReader buffRdr;
 
-	// the usual weird Java bullshit goin' on here
+	// the usual weird Java thangs goin' on here
 	public GarageDoorService() {
 		super("GarageDoorService");
 	}
@@ -186,6 +186,7 @@ public class GarageDoorService extends IntentService {
 		Log.i(TAG, "service done");
 	}
 
+	// we do this a lot...
 	public void doTask(AsyncTask<Void, String, Integer> task) {
 		try {
 			task.execute();
@@ -222,7 +223,7 @@ public class GarageDoorService extends IntentService {
 		super.onDestroy();
 	}
 
-	// sleep w/o the stupidass useless exception crap
+	// sleep w/o the stupid useless exception crap
 	public void sleep(long time) {
 		try {
 			Thread.sleep(time);
@@ -231,7 +232,6 @@ public class GarageDoorService extends IntentService {
 	}
 
 	// SSL connection takes a very long time (3 or 4 seconds) so we do it at startup
-	// a nice side-effect is that it keeps the data connection awake
 	class Connect extends AsyncTask<Void, String, Integer> {
 		@Override
 		protected Integer doInBackground(Void... params) {
@@ -290,6 +290,7 @@ public class GarageDoorService extends IntentService {
 		}
 	}
 
+	// see if the mobile data connection is active or not
 	public boolean getDataEnabled() {
 		try {
 			return (Boolean) getMobileDataEnabledMethod.invoke(iConnectivityManager);
@@ -299,6 +300,7 @@ public class GarageDoorService extends IntentService {
 		return false;
 	}
 
+	// bring mobile data connection up or down
 	public void setDataEnabled(boolean value) {
 		try {
 			setMobileDataEnabledMethod.invoke(iConnectivityManager, value);
