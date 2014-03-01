@@ -46,9 +46,9 @@ public class GarageDoorService extends IntentService {
 	private int port;
 
 	// data connection management
-	private boolean data;
+	private boolean turnoff_data;
+	private boolean turnoff_wifi;
 	Object iConnectivityManager;
-	Method getMobileDataEnabledMethod;
 	Method setMobileDataEnabledMethod;
 
 	private boolean done = true;
@@ -86,9 +86,10 @@ public class GarageDoorService extends IntentService {
 		network = sSettings.getString(GarageSettings.PREFS_NETWORK, "");
 		host = sSettings.getString(GarageSettings.PREFS_EXT_IP, "");
 		port = sSettings.getInt(GarageSettings.PREFS_EXT_PORT, 0);
-		data = sSettings.getBoolean(GarageSettings.PREFS_DATA, false);
+		turnoff_data = sSettings.getBoolean(GarageSettings.PREFS_DATA, false);
+		turnoff_wifi = sSettings.getBoolean(GarageSettings.PREFS_WIFI, false);
 
-		// set up the ability to test/set data connection
+		// set up the ability to set data connection
 		// since we're not really allowed to use this, we've got to use reflection to dig it out
 		try {
 			ConnectivityManager conman = (ConnectivityManager) this.getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -102,13 +103,16 @@ public class GarageDoorService extends IntentService {
 			setMobileDataEnabledMethod = iConnectivityManagerClass.getDeclaredMethod("setMobileDataEnabled", Boolean.TYPE);
 			setMobileDataEnabledMethod.setAccessible(true);
 
-			getMobileDataEnabledMethod = iConnectivityManagerClass.getDeclaredMethod("getMobileDataEnabled");
-			getMobileDataEnabledMethod.setAccessible(true);
+			// turn on cell data
+			setDataEnabled(true);
 		} catch (Exception e) {
-			data = false;
+			turnoff_data = false;
 		}
 
 		wifiManager = (WifiManager) this.getSystemService(Context.WIFI_SERVICE);
+
+		// turn wi-fi on
+		wifiManager.setWifiEnabled(true);
 
 		// this runs when scan results are available, or the notification gets clicked
 		broadcastReceiver = new BroadcastReceiver() {
@@ -160,11 +164,6 @@ public class GarageDoorService extends IntentService {
 		// start the network scans
 		wifiManager.startScan();
 
-		// turn on data if the user wants it done automatically
-		if (data && !getDataEnabled()) {
-			setDataEnabled(true);
-		}
-
 		// connect to Raspberry Pi over mobile data
 		doTask(new Connect());
 
@@ -179,9 +178,12 @@ public class GarageDoorService extends IntentService {
 			sleep(500);
 		}
 
-		// turn off data if we turned it on
-		if (data && getDataEnabled()) {
+		// turn off things according to user's wishes
+		if (turnoff_data) {
 			setDataEnabled(false);
+		}
+		if (turnoff_wifi) {
+			wifiManager.setWifiEnabled(false);
 		}
 		Log.i(TAG, "service done");
 	}
@@ -290,22 +292,11 @@ public class GarageDoorService extends IntentService {
 		}
 	}
 
-	// see if the mobile data connection is active or not
-	public boolean getDataEnabled() {
-		try {
-			return (Boolean) getMobileDataEnabledMethod.invoke(iConnectivityManager);
-		} catch (Exception e) {
-			Log.e(TAG, "getDataEnabled Exception: " + Log.getStackTraceString(e));
-		}
-		return false;
-	}
-
 	// bring mobile data connection up or down
 	public void setDataEnabled(boolean value) {
 		try {
 			setMobileDataEnabledMethod.invoke(iConnectivityManager, value);
 		} catch (Exception e) {
-			Log.e(TAG, "setDataEnabled Exception: " + Log.getStackTraceString(e));
 		}
 	}
 }

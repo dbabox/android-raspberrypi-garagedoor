@@ -46,6 +46,7 @@ public class GarageSettings extends Activity {
 	static final String PREFS_EXT_PORT = "Ext_Port";
 	static final String PREFS_NETWORK = "Network_Name";
 	static final String PREFS_DATA = "Manage_Data";
+	static final String PREFS_WIFI = "Manage_WiFi";
 
 	// network service resolution
 	static final String SERVICE_TYPE = "_garagedoor._tcp";
@@ -65,6 +66,7 @@ public class GarageSettings extends Activity {
 	private EditText edNetwork;
 	private TextView tvWifiNetwork;
 	private CheckBox cbData;
+	private CheckBox cbWifi;
 	private ListView lvServiceList;
 	private ListView lvRoutersList;
 	private ArrayAdapter<PrintableService> adapterServices;
@@ -163,7 +165,8 @@ public class GarageSettings extends Activity {
 		edExtIP = (EditText) findViewById(R.id.external_ip);
 		edExtIPPort = (EditText) findViewById(R.id.external_ip_port);
 		edNetwork = (EditText) findViewById(R.id.network);
-		cbData = (CheckBox) findViewById(R.id.check);
+		cbData = (CheckBox) findViewById(R.id.check_data);
+		cbWifi = (CheckBox) findViewById(R.id.check_wifi);
 
 		// populate fields from current settings
 		edHost.setText(sSettings.getString(PREFS_LOCAL_IP, ""));
@@ -172,6 +175,7 @@ public class GarageSettings extends Activity {
 		edExtIPPort.setText("" + sSettings.getInt(PREFS_EXT_PORT, 0));
 		edNetwork.setText(sSettings.getString(PREFS_NETWORK, ""));
 		cbData.setChecked(sSettings.getBoolean(PREFS_DATA, true));
+		cbWifi.setChecked(sSettings.getBoolean(PREFS_WIFI, true));
 
 		// set up list of services found
 		lvServiceList = (ListView) findViewById(R.id.list_svcs);
@@ -223,6 +227,7 @@ public class GarageSettings extends Activity {
 				editor.putString(PREFS_LOCAL_IP, edHost.getText().toString().trim());
 				editor.putString(PREFS_EXT_IP, edExtIP.getText().toString().trim());
 				editor.putBoolean(PREFS_DATA, cbData.isChecked());
+				editor.putBoolean(PREFS_WIFI, cbWifi.isChecked());
 				try {
 					editor.putInt(PREFS_LOCAL_PORT, Integer.parseInt(edHostPort.getText().toString()));
 					editor.putInt(PREFS_EXT_PORT, Integer.parseInt(edExtIPPort.getText().toString()));
@@ -231,7 +236,6 @@ public class GarageSettings extends Activity {
 					return;
 				}
 				editor.commit();
-				finish();
 			}
 		});
 
@@ -239,12 +243,6 @@ public class GarageSettings extends Activity {
 		findViewById(R.id.fetch).setOnClickListener(new View.OnClickListener() {
 			public void onClick(View v) {
 				fetchCert();
-			}
-		});
-		// "cancel" button.
-		findViewById(R.id.cancel).setOnClickListener(new View.OnClickListener() {
-			public void onClick(View v) {
-				finish();
 			}
 		});
 	}
