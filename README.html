@@ -22,12 +22,14 @@
       with the properly signed certificate can do it.</p>
     <p>Originally the approach was to connect to the Raspberry Pi over my home wi-fi. However, it takes <i>forever</i> to authorize and connect to the wi-fi
       network using WPA2, so what I do now is to connect over the cellular data network when my wi-fi network appears in a scan. The app is smart enough to turn
-      the data connection on and off as necessary.</p>
+      the wi-fi and data connections on and off as necessary.</p>
     <p>When I'm getting ready to leave, there is an "away" app that opens the garage door, and then when I'm out of wi-fi range the Raspberry Pi automatically
       closes the door. If you change your mind, just run the app again to cancel it.</p>
     <p>You can also check the status of the garage door remotely, so you can know it's closed. It displays a large green button if it's closed, which turns to
       red if it's open. It's barberpole-grey if it's in-between, and barberpole-red if there is a problem. You can tap the button to open or close the door.</p>
     <p>The setup app uses UPnP and zeroconf to automatically determine as much information as it can, so the Android configuration is just a couple taps.</p>
+    <p>The "garagedoor.tac" <a target="_blank" href="http://python.org/">Python</a> script running on the Raspberry Pi uses the
+      <a target="_blank" href="https://twistedmatrix.com/trac/">Twisted framework</a> for a robust multithreaded network server daemon.<p>
     <h3>To quickly set up the Raspberry Pi:</h3>
     <p>(you'll need to do most of this as root)</p>
     <ol>

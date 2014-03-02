@@ -30,7 +30,7 @@ public class GarageDoorService extends IntentService {
 	private static final int ONGOING_NOTIFICATION_ID = 1;
 	private static final String TAG = "GarageDoorService";
 
-	private BroadcastReceiver broadcastReceiver;
+	private BroadcastReceiver broadcastReceiver = null;
 	private WifiManager wifiManager;
 	private WifiLock wifiLock;
 	private WakeLock cpuLock;
@@ -89,6 +89,17 @@ public class GarageDoorService extends IntentService {
 		turnoff_data = sSettings.getBoolean(GarageSettings.PREFS_DATA, false);
 		turnoff_wifi = sSettings.getBoolean(GarageSettings.PREFS_WIFI, false);
 
+		wifiManager = (WifiManager) this.getSystemService(Context.WIFI_SERVICE);
+
+		// abort if we're already home
+		String ssid = wifiManager.getConnectionInfo().getSSID();
+		if (ssid.equals("\"" + network + "\"")) {
+			return;
+		}
+
+		// turn wi-fi on
+		wifiManager.setWifiEnabled(true);
+
 		// set up the ability to set data connection
 		// since we're not really allowed to use this, we've got to use reflection to dig it out
 		try {
@@ -108,11 +119,6 @@ public class GarageDoorService extends IntentService {
 		} catch (Exception e) {
 			turnoff_data = false;
 		}
-
-		wifiManager = (WifiManager) this.getSystemService(Context.WIFI_SERVICE);
-
-		// turn wi-fi on
-		wifiManager.setWifiEnabled(true);
 
 		// this runs when scan results are available, or the notification gets clicked
 		broadcastReceiver = new BroadcastReceiver() {
@@ -211,14 +217,17 @@ public class GarageDoorService extends IntentService {
 
 	@Override
 	public void onDestroy() {
-		unregisterReceiver(broadcastReceiver);
+		Log.i(TAG, "onDestroy");
+		if (broadcastReceiver != null) {
+			unregisterReceiver(broadcastReceiver);
+		}
 
-		if (wifiLock.isHeld()) {
+		if (wifiLock != null && wifiLock.isHeld()) {
 			wifiLock.release();
 		}
 
 		// must be done as the very last piece of code
-		if (cpuLock.isHeld()) {
+		if (cpuLock != null && cpuLock.isHeld()) {
 			cpuLock.release();
 		}
 
