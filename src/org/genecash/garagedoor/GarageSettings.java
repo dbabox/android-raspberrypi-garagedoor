@@ -236,6 +236,7 @@ public class GarageSettings extends Activity {
 					return;
 				}
 				editor.commit();
+				Toast.makeText(getApplicationContext(), "Settings saved!", Toast.LENGTH_LONG).show();
 			}
 		});
 

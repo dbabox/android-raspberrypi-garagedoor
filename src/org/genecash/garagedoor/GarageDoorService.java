@@ -1,6 +1,8 @@
 package org.genecash.garagedoor;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.InputStreamReader;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -28,7 +30,6 @@ import android.util.Log;
 
 public class GarageDoorService extends IntentService {
 	private static final int ONGOING_NOTIFICATION_ID = 1;
-	private static final String TAG = "GarageDoorService";
 
 	private BroadcastReceiver broadcastReceiver = null;
 	private WifiManager wifiManager;
@@ -56,6 +57,9 @@ public class GarageDoorService extends IntentService {
 	public SSLSocket sock;
 	public BufferedReader buffRdr;
 
+	// our own logfile
+	public FileWriter logfile;
+
 	// the usual weird Java thangs goin' on here
 	public GarageDoorService() {
 		super("GarageDoorService");
@@ -63,8 +67,29 @@ public class GarageDoorService extends IntentService {
 
 	@Override
 	protected void onHandleIntent(Intent intent) {
-		Log.i(TAG, "service started");
+		try {
+			logfile = new FileWriter(new File(getExternalFilesDir(null), "log.txt"), true);
+		} catch (Exception e) {
+		}
+		log("service started");
 		done = false;
+
+		// pull locate network name, host address & port from preferences
+		SharedPreferences sSettings = getSharedPreferences(GarageSettings.PREFS_NAME, MODE_PRIVATE);
+		network = sSettings.getString(GarageSettings.PREFS_NETWORK, "");
+		host = sSettings.getString(GarageSettings.PREFS_EXT_IP, "");
+		port = sSettings.getInt(GarageSettings.PREFS_EXT_PORT, 0);
+		turnoff_data = sSettings.getBoolean(GarageSettings.PREFS_DATA, false);
+		turnoff_wifi = sSettings.getBoolean(GarageSettings.PREFS_WIFI, false);
+
+		wifiManager = (WifiManager) this.getSystemService(Context.WIFI_SERVICE);
+
+		// abort if we're already home
+		String ssid = wifiManager.getConnectionInfo().getSSID();
+		if (ssid.equals("\"" + network + "\"")) {
+			log("aborting");
+			return;
+		}
 
 		// start in foreground so we don't get killed
 		// it also happens to provide an easy way to terminate by clicking the notification
@@ -80,22 +105,6 @@ public class GarageDoorService extends IntentService {
 
 		// initialize SSL
 		sslSocketFactory = Utilities.initSSL(this);
-
-		// pull locate network name, host address & port from preferences
-		SharedPreferences sSettings = getSharedPreferences(GarageSettings.PREFS_NAME, MODE_PRIVATE);
-		network = sSettings.getString(GarageSettings.PREFS_NETWORK, "");
-		host = sSettings.getString(GarageSettings.PREFS_EXT_IP, "");
-		port = sSettings.getInt(GarageSettings.PREFS_EXT_PORT, 0);
-		turnoff_data = sSettings.getBoolean(GarageSettings.PREFS_DATA, false);
-		turnoff_wifi = sSettings.getBoolean(GarageSettings.PREFS_WIFI, false);
-
-		wifiManager = (WifiManager) this.getSystemService(Context.WIFI_SERVICE);
-
-		// abort if we're already home
-		String ssid = wifiManager.getConnectionInfo().getSSID();
-		if (ssid.equals("\"" + network + "\"")) {
-			return;
-		}
 
 		// turn wi-fi on
 		wifiManager.setWifiEnabled(true);
@@ -124,18 +133,18 @@ public class GarageDoorService extends IntentService {
 		broadcastReceiver = new BroadcastReceiver() {
 			@Override
 			public void onReceive(Context context, Intent intent) {
-				Log.i(TAG, "onReceive");
+				log("onReceive");
 				String action = intent.getAction();
 				if (action.equals(notificationAction)) {
 					// exit when notification clicked
-					Log.i(TAG, "exit when notification clicked");
+					log("exit when notification clicked");
 					done = true;
 				}
 				if (action.equals(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION)) {
-					Log.i(TAG, "scan results available");
+					log("scan results available");
 					for (ScanResult i : wifiManager.getScanResults()) {
 						if (i.SSID.equals(network)) {
-							Log.i(TAG, "network found");
+							log("network found");
 							// tell the Raspberry Pi to open the door
 							doTask(new OpenDoor());
 							break;
@@ -173,7 +182,7 @@ public class GarageDoorService extends IntentService {
 		// connect to Raspberry Pi over mobile data
 		doTask(new Connect());
 
-		Log.i(TAG, "start loop");
+		log("start loop");
 		// busy work
 		int ctr = 0;
 		while (!done) {
@@ -191,7 +200,7 @@ public class GarageDoorService extends IntentService {
 		if (turnoff_wifi) {
 			wifiManager.setWifiEnabled(false);
 		}
-		Log.i(TAG, "service done");
+		log("service done");
 	}
 
 	// we do this a lot...
@@ -200,16 +209,16 @@ public class GarageDoorService extends IntentService {
 			task.execute();
 			task.get();
 		} catch (Exception e) {
-			Log.e(TAG, "doTask Exception: " + Log.getStackTraceString(e));
+			log("doTask Exception: " + Log.getStackTraceString(e));
 		}
 	}
 
 	// this will keep multiple startups from being enqueued
 	@Override
 	public void onStart(Intent intent, int startId) {
-		Log.i(TAG, "onStart");
+		log("onStart");
 		if (!done) {
-			Log.i(TAG, "onStart dropped");
+			log("onStart dropped");
 			return;
 		}
 		super.onStart(intent, startId);
@@ -217,9 +226,14 @@ public class GarageDoorService extends IntentService {
 
 	@Override
 	public void onDestroy() {
-		Log.i(TAG, "onDestroy");
+		log("onDestroy");
 		if (broadcastReceiver != null) {
 			unregisterReceiver(broadcastReceiver);
+		}
+
+		try {
+			logfile.close();
+		} catch (Exception e) {
 		}
 
 		if (wifiLock != null && wifiLock.isHeld()) {
@@ -247,7 +261,7 @@ public class GarageDoorService extends IntentService {
 		@Override
 		protected Integer doInBackground(Void... params) {
 			boolean connected = false;
-			Log.i(TAG, "Connect doInBackground");
+			log("Connect doInBackground");
 			while (!connected && !done) {
 				try {
 					sock = (SSLSocket) sslSocketFactory.createSocket(host, port);
@@ -259,7 +273,7 @@ public class GarageDoorService extends IntentService {
 					sleep(2 * 1000);
 				}
 			}
-			Log.i(TAG, "Connect done");
+			log("Connect done");
 			return 0;
 		}
 	}
@@ -268,17 +282,17 @@ public class GarageDoorService extends IntentService {
 	class OpenDoor extends AsyncTask<Void, String, Integer> {
 		@Override
 		protected Integer doInBackground(Void... params) {
-			Log.i(TAG, "OpenDoor doInBackground");
+			log("OpenDoor doInBackground");
 			String cmd = "OPEN\n";
 			try {
 				sock.getOutputStream().write(cmd.getBytes());
 				done = buffRdr.readLine().equals("DONE");
 				sock.close();
 			} catch (Exception e) {
-				Log.e(TAG, "OpenDoor Exception: " + Log.getStackTraceString(e));
+				log("OpenDoor Exception: " + Log.getStackTraceString(e));
 				sleep(500);
 			}
-			Log.i(TAG, "OpenDoor done: " + done);
+			log("OpenDoor done: " + done);
 			return 0;
 		}
 	}
@@ -287,16 +301,16 @@ public class GarageDoorService extends IntentService {
 	class Ping extends AsyncTask<Void, String, Integer> {
 		@Override
 		protected Integer doInBackground(Void... params) {
-			Log.i(TAG, "Ping doInBackground");
+			log("Ping doInBackground");
 			String cmd = "PING\n";
 			try {
 				sock.getOutputStream().write(cmd.getBytes());
 			} catch (Exception e) {
-				Log.e(TAG, "Ping Exception: " + Log.getStackTraceString(e));
+				log("Ping Exception: " + Log.getStackTraceString(e));
 				sleep(500);
 				doTask(new Connect());
 			}
-			Log.i(TAG, "Ping done");
+			log("Ping done");
 			return 0;
 		}
 	}
@@ -305,6 +319,17 @@ public class GarageDoorService extends IntentService {
 	public void setDataEnabled(boolean value) {
 		try {
 			setMobileDataEnabledMethod.invoke(iConnectivityManager, value);
+		} catch (Exception e) {
+		}
+	}
+
+	// log to our own file so that messages don't get lost
+	public void log(String msg) {
+		Log.i("org.genecash.garagedoor", msg);
+		try {
+			if (logfile != null) {
+				logfile.write(msg + "\n");
+			}
 		} catch (Exception e) {
 		}
 	}
