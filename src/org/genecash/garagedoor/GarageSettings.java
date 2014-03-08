@@ -13,6 +13,7 @@ import net.sbbi.upnp.impls.InternetGatewayDevice;
 import net.sbbi.upnp.messages.UPNPResponseException;
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdManager.DiscoveryListener;
@@ -72,7 +73,6 @@ public class GarageSettings extends Activity {
 	private ArrayAdapter<PrintableService> adapterServices;
 	private ArrayAdapter<PrintableRouter> adapterRouters;
 
-	private Context ctx = this;
 	private List<PrintableService> listServices = new ArrayList<PrintableService>();
 	private List<PrintableRouter> listRouters = new ArrayList<PrintableRouter>();
 
@@ -121,14 +121,14 @@ public class GarageSettings extends Activity {
 			@Override
 			public void onStartDiscoveryFailed(String serviceType, int errorCode) {
 				Log.i(TAG, "StartDiscovery failed. Error: " + errorCode);
-				Toast.makeText(ctx, "StartDiscovery failed. Error: " + errorCode, Toast.LENGTH_LONG).show();
+				Toast.makeText(getApplicationContext(), "StartDiscovery failed. Error: " + errorCode, Toast.LENGTH_LONG).show();
 				nsdManager.stopServiceDiscovery(this);
 			}
 
 			@Override
 			public void onStopDiscoveryFailed(String serviceType, int errorCode) {
 				Log.i(TAG, "StopDiscovery failed. Error: " + errorCode);
-				Toast.makeText(ctx, "StopDiscovery failed. Error: " + errorCode, Toast.LENGTH_LONG).show();
+				Toast.makeText(getApplicationContext(), "StopDiscovery failed. Error: " + errorCode, Toast.LENGTH_LONG).show();
 				nsdManager.stopServiceDiscovery(this);
 			}
 		};
@@ -136,8 +136,6 @@ public class GarageSettings extends Activity {
 		resolveListener = new NsdManager.ResolveListener() {
 			@Override
 			public void onResolveFailed(NsdServiceInfo serviceInfo, int errorCode) {
-				Log.i(TAG, "Resolve failed Error: " + errorCode + " - " + serviceInfo);
-				Toast.makeText(ctx, "Resolve failed. Error: " + errorCode + " - " + serviceInfo, Toast.LENGTH_LONG).show();
 			}
 
 			@Override
@@ -232,7 +230,7 @@ public class GarageSettings extends Activity {
 					editor.putInt(PREFS_LOCAL_PORT, Integer.parseInt(edHostPort.getText().toString()));
 					editor.putInt(PREFS_EXT_PORT, Integer.parseInt(edExtIPPort.getText().toString()));
 				} catch (NumberFormatException e) {
-					Toast.makeText(ctx, "Ports must be numeric", Toast.LENGTH_LONG).show();
+					Toast.makeText(getApplicationContext(), "Ports must be numeric", Toast.LENGTH_LONG).show();
 					return;
 				}
 				editor.commit();
@@ -246,24 +244,35 @@ public class GarageSettings extends Activity {
 				fetchCert();
 			}
 		});
-	}
 
-	@Override
-	protected void onResume() {
-		// populate list of services
-		nsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener);
+		// "view log" button.
+		findViewById(R.id.log).setOnClickListener(new View.OnClickListener() {
+			public void onClick(View v) {
+				Intent i = new Intent(getApplicationContext(), ViewLog.class);
+				startActivity(i);
+			}
+		});
+
 		// populate list of routers
 		new GetExternalIP().execute();
-		super.onResume();
+
+		// populate list of services
+		discoverServices();
 	}
 
 	@Override
-	protected void onPause() {
+	protected void onRestart() {
+		super.onRestart();
+		discoverServices();
+	}
+
+	@Override
+	protected void onStop() {
+		super.onStop();
 		try {
 			nsdManager.stopServiceDiscovery(discoveryListener);
 		} catch (Exception e) {
 		}
-		super.onPause();
 	}
 
 	// fetch certificate from external storage (sdcard) and move it to protected directory
@@ -290,6 +299,13 @@ public class GarageSettings extends Activity {
 			Toast.makeText(this, "Certificate fetched!", Toast.LENGTH_LONG).show();
 		} catch (Exception e) {
 			e.printStackTrace();
+		}
+	}
+
+	// we have to bang on this door multiple times
+	void discoverServices() {
+		if (adapterServices.getCount() == 0) {
+			nsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener);
 		}
 	}
 
@@ -324,6 +340,7 @@ public class GarageSettings extends Activity {
 			}
 			listRouters.add(new PrintableRouter(values[0], values[1]));
 			adapterRouters.notifyDataSetChanged();
+			discoverServices();
 		}
 	}
 }

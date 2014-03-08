@@ -59,6 +59,7 @@ public class GarageDoorService extends IntentService {
 
 	// our own logfile
 	public FileWriter logfile;
+	public static final String LOG_FILENAME = "log.txt";
 
 	// the usual weird Java thangs goin' on here
 	public GarageDoorService() {
@@ -68,7 +69,7 @@ public class GarageDoorService extends IntentService {
 	@Override
 	protected void onHandleIntent(Intent intent) {
 		try {
-			logfile = new FileWriter(new File(getExternalFilesDir(null), "log.txt"), true);
+			logfile = new FileWriter(new File(getExternalFilesDir(null), LOG_FILENAME), true);
 		} catch (Exception e) {
 		}
 		log("service started");
@@ -305,6 +306,7 @@ public class GarageDoorService extends IntentService {
 			String cmd = "PING\n";
 			try {
 				sock.getOutputStream().write(cmd.getBytes());
+				buffRdr.readLine();
 			} catch (Exception e) {
 				log("Ping Exception: " + Log.getStackTraceString(e));
 				sleep(500);
