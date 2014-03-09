@@ -78,6 +78,7 @@ public class GarageSettings extends Activity {
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
+		log("onCreate");
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.settings);
 
@@ -253,30 +254,39 @@ public class GarageSettings extends Activity {
 			}
 		});
 
+		log("onCreate setup done");
+
 		// populate list of routers
 		new GetExternalIP().execute();
 
 		// populate list of services
 		discoverServices();
+
+		log("onCreate done");
 	}
 
 	@Override
 	protected void onRestart() {
+		log("onRestart");
 		super.onRestart();
 		discoverServices();
+		log("onRestart done");
 	}
 
 	@Override
 	protected void onStop() {
+		log("onStop");
 		super.onStop();
 		try {
 			nsdManager.stopServiceDiscovery(discoveryListener);
 		} catch (Exception e) {
 		}
+		log("onStop done");
 	}
 
 	// fetch certificate from external storage (sdcard) and move it to protected directory
 	void fetchCert() {
+		log("fetchCert");
 		FileChannel src = null;
 		FileChannel dst = null;
 		File f = new File(Environment.getExternalStorageDirectory(), CERT_FILE);
@@ -300,13 +310,16 @@ public class GarageSettings extends Activity {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		log("fetchCert done");
 	}
 
 	// we have to bang on this door multiple times
 	void discoverServices() {
+		log("discoverServices");
 		if (adapterServices.getCount() == 0) {
 			nsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener);
 		}
+		log("discoverServices done");
 	}
 
 	// try to discover external IP addresses of routers via UPnP
@@ -343,4 +356,10 @@ public class GarageSettings extends Activity {
 			discoverServices();
 		}
 	}
+
+	// log to our own file so that messages don't get lost
+	public void log(String msg) {
+		Log.i("garagedoorsettings", msg);
+	}
+
 }

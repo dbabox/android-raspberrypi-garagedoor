@@ -50,6 +50,7 @@ public class GarageDoorService extends IntentService {
 	private boolean turnoff_data;
 	private boolean turnoff_wifi;
 	Object iConnectivityManager;
+	Method getMobileDataEnabledMethod;
 	Method setMobileDataEnabledMethod;
 
 	private boolean done = true;
@@ -121,11 +122,11 @@ public class GarageDoorService extends IntentService {
 			iConnectivityManager = iConnectivityManagerField.get(conman);
 			Class<?> iConnectivityManagerClass = Class.forName(iConnectivityManager.getClass().getName());
 
+			getMobileDataEnabledMethod = iConnectivityManagerClass.getDeclaredMethod("getMobileDataEnabled");
+			getMobileDataEnabledMethod.setAccessible(true);
+
 			setMobileDataEnabledMethod = iConnectivityManagerClass.getDeclaredMethod("setMobileDataEnabled", Boolean.TYPE);
 			setMobileDataEnabledMethod.setAccessible(true);
-
-			// turn on cell data
-			setDataEnabled(true);
 		} catch (Exception e) {
 			turnoff_data = false;
 		}
@@ -263,8 +264,15 @@ public class GarageDoorService extends IntentService {
 		protected Integer doInBackground(Void... params) {
 			boolean connected = false;
 			log("Connect doInBackground");
+
+			// turn on cell data if necessary
+			if (!getDataEnabled()) {
+				setDataEnabled(true);
+				sleep(2 * 1000);
+			}
 			while (!connected && !done) {
 				try {
+					log("connecting");
 					sock = (SSLSocket) sslSocketFactory.createSocket(host, port);
 					sock.setSoTimeout(2000);
 					buffRdr = new BufferedReader(new InputStreamReader(sock.getInputStream(), "ASCII"));
@@ -285,7 +293,9 @@ public class GarageDoorService extends IntentService {
 		protected Integer doInBackground(Void... params) {
 			log("OpenDoor doInBackground");
 			String cmd = "OPEN\n";
+
 			try {
+				log("opening");
 				sock.getOutputStream().write(cmd.getBytes());
 				done = buffRdr.readLine().equals("DONE");
 				sock.close();
@@ -302,19 +312,36 @@ public class GarageDoorService extends IntentService {
 	class Ping extends AsyncTask<Void, String, Integer> {
 		@Override
 		protected Integer doInBackground(Void... params) {
+			boolean connected = false;
 			log("Ping doInBackground");
 			String cmd = "PING\n";
-			try {
-				sock.getOutputStream().write(cmd.getBytes());
-				buffRdr.readLine();
-			} catch (Exception e) {
-				log("Ping Exception: " + Log.getStackTraceString(e));
-				sleep(500);
-				doTask(new Connect());
+
+			while (!connected && !done) {
+				try {
+					log("pinging");
+					sock.getOutputStream().write(cmd.getBytes());
+					buffRdr.readLine();
+					connected = true;
+				} catch (Exception e) {
+					log("Ping Exception: " + Log.getStackTraceString(e));
+					sleep(500);
+					if (!sock.isConnected()) {
+						doTask(new Connect());
+					}
+				}
 			}
 			log("Ping done");
 			return 0;
 		}
+	}
+
+	// test mobile data connection
+	public boolean getDataEnabled() {
+		try {
+			return (Boolean) getMobileDataEnabledMethod.invoke(iConnectivityManager);
+		} catch (Exception e) {
+		}
+		return false;
 	}
 
 	// bring mobile data connection up or down
@@ -327,10 +354,11 @@ public class GarageDoorService extends IntentService {
 
 	// log to our own file so that messages don't get lost
 	public void log(String msg) {
-		Log.i("org.genecash.garagedoor", msg);
+		Log.i("garagedoorservice", msg);
 		try {
 			if (logfile != null) {
 				logfile.write(msg + "\n");
+				logfile.flush();
 			}
 		} catch (Exception e) {
 		}

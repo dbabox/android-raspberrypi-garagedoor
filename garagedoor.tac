@@ -98,7 +98,7 @@ class GarageDoor(LineReceiver):
             awayTasks[self.addr]=task.LoopingCall(self.away)
             awayTasks[self.addr].start(1)
         elif cmd == 'PING':
-            pass
+            self.sendLine('PONG')
         else:
             # unknown command
             log.msg('Unknown command from: '+self.addr)
