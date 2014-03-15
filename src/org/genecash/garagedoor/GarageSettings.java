@@ -13,7 +13,6 @@ import net.sbbi.upnp.impls.InternetGatewayDevice;
 import net.sbbi.upnp.messages.UPNPResponseException;
 import android.app.Activity;
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdManager.DiscoveryListener;
@@ -84,7 +83,10 @@ public class GarageSettings extends Activity {
 
 		SharedPreferences sSettings = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 
+		// this shit just hangs and there's not a goddamn thing I can do about it
+		log("nsdManager");
 		nsdManager = (NsdManager) this.getSystemService(Context.NSD_SERVICE);
+		log("nsdManager done");
 
 		discoveryListener = new NsdManager.DiscoveryListener() {
 			@Override
@@ -246,42 +248,19 @@ public class GarageSettings extends Activity {
 			}
 		});
 
-		// "view log" button.
-		findViewById(R.id.log).setOnClickListener(new View.OnClickListener() {
-			public void onClick(View v) {
-				Intent i = new Intent(getApplicationContext(), ViewLog.class);
-				startActivity(i);
-			}
-		});
-
-		log("onCreate setup done");
-
 		// populate list of routers
 		new GetExternalIP().execute();
-
-		// populate list of services
-		discoverServices();
-
-		log("onCreate done");
 	}
 
 	@Override
-	protected void onRestart() {
-		log("onRestart");
-		super.onRestart();
-		discoverServices();
-		log("onRestart done");
-	}
-
-	@Override
-	protected void onStop() {
-		log("onStop");
-		super.onStop();
+	protected void onDestroy() {
+		log("onDestroy");
 		try {
 			nsdManager.stopServiceDiscovery(discoveryListener);
 		} catch (Exception e) {
 		}
-		log("onStop done");
+		super.onDestroy();
+		log("onDestroy done");
 	}
 
 	// fetch certificate from external storage (sdcard) and move it to protected directory
@@ -353,6 +332,12 @@ public class GarageSettings extends Activity {
 			}
 			listRouters.add(new PrintableRouter(values[0], values[1]));
 			adapterRouters.notifyDataSetChanged();
+		}
+
+		@Override
+		protected void onPostExecute(Void result) {
+			super.onPostExecute(result);
+			// must do this AFTER router discovery
 			discoverServices();
 		}
 	}
@@ -361,5 +346,4 @@ public class GarageSettings extends Activity {
 	public void log(String msg) {
 		Log.i("garagedoorsettings", msg);
 	}
-
 }

@@ -1,11 +1,14 @@
 package org.genecash.garagedoor;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileWriter;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.net.SocketTimeoutException;
+import java.util.logging.FileHandler;
+import java.util.logging.Handler;
+import java.util.logging.Logger;
 
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
@@ -59,8 +62,7 @@ public class GarageDoorService extends IntentService {
 	public BufferedReader buffRdr;
 
 	// our own logfile
-	public FileWriter logfile;
-	public static final String LOG_FILENAME = "log.txt";
+	public Logger logger = null;
 
 	// the usual weird Java thangs goin' on here
 	public GarageDoorService() {
@@ -69,10 +71,18 @@ public class GarageDoorService extends IntentService {
 
 	@Override
 	protected void onHandleIntent(Intent intent) {
+		// go through the pain of setting up our own logging
 		try {
-			logfile = new FileWriter(new File(getExternalFilesDir(null), LOG_FILENAME), true);
+			logger = Logger.getLogger("logger");
+			Handler h = new FileHandler(getExternalFilesDir(null) + "/log%g%u.txt", 256 * 1024, 25);
+			h.setFormatter(new CustomFormatter());
+			logger.addHandler(h);
+			logger.setUseParentHandlers(false);
 		} catch (Exception e) {
+			Log.e("garagedoorservice", "something went to shit with the logging");
+			return;
 		}
+
 		log("service started");
 		done = false;
 
@@ -135,7 +145,7 @@ public class GarageDoorService extends IntentService {
 		broadcastReceiver = new BroadcastReceiver() {
 			@Override
 			public void onReceive(Context context, Intent intent) {
-				log("onReceive");
+				// log("onReceive");
 				String action = intent.getAction();
 				if (action.equals(notificationAction)) {
 					// exit when notification clicked
@@ -143,7 +153,7 @@ public class GarageDoorService extends IntentService {
 					done = true;
 				}
 				if (action.equals(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION)) {
-					log("scan results available");
+					// log("scan results available");
 					for (ScanResult i : wifiManager.getScanResults()) {
 						if (i.SSID.equals(network)) {
 							log("network found");
@@ -233,11 +243,6 @@ public class GarageDoorService extends IntentService {
 			unregisterReceiver(broadcastReceiver);
 		}
 
-		try {
-			logfile.close();
-		} catch (Exception e) {
-		}
-
 		if (wifiLock != null && wifiLock.isHeld()) {
 			wifiLock.release();
 		}
@@ -293,12 +298,18 @@ public class GarageDoorService extends IntentService {
 		protected Integer doInBackground(Void... params) {
 			log("OpenDoor doInBackground");
 			String cmd = "OPEN\n";
+			String s;
 
 			try {
 				log("opening");
 				sock.getOutputStream().write(cmd.getBytes());
-				done = buffRdr.readLine().equals("DONE");
-				sock.close();
+				// ignore extraneous ping responses
+				while ((s = buffRdr.readLine()).equals("PONG"))
+					log("pong");
+				done = s.equals("DONE");
+				if (!done) {
+					log("got: " + s);
+				}
 			} catch (Exception e) {
 				log("OpenDoor Exception: " + Log.getStackTraceString(e));
 				sleep(500);
@@ -322,12 +333,16 @@ public class GarageDoorService extends IntentService {
 					sock.getOutputStream().write(cmd.getBytes());
 					buffRdr.readLine();
 					connected = true;
+				} catch (SocketTimeoutException e) {
+					log("Ping timeout");
 				} catch (Exception e) {
 					log("Ping Exception: " + Log.getStackTraceString(e));
 					sleep(500);
-					if (!sock.isConnected()) {
-						doTask(new Connect());
+					try {
+						sock.close();
+					} catch (IOException e1) {
 					}
+					doTask(new Connect());
 				}
 			}
 			log("Ping done");
@@ -337,6 +352,7 @@ public class GarageDoorService extends IntentService {
 
 	// test mobile data connection
 	public boolean getDataEnabled() {
+		log("getDataEnabled");
 		try {
 			return (Boolean) getMobileDataEnabledMethod.invoke(iConnectivityManager);
 		} catch (Exception e) {
@@ -346,6 +362,7 @@ public class GarageDoorService extends IntentService {
 
 	// bring mobile data connection up or down
 	public void setDataEnabled(boolean value) {
+		log("setDataEnabled");
 		try {
 			setMobileDataEnabledMethod.invoke(iConnectivityManager, value);
 		} catch (Exception e) {
@@ -355,12 +372,8 @@ public class GarageDoorService extends IntentService {
 	// log to our own file so that messages don't get lost
 	public void log(String msg) {
 		Log.i("garagedoorservice", msg);
-		try {
-			if (logfile != null) {
-				logfile.write(msg + "\n");
-				logfile.flush();
-			}
-		} catch (Exception e) {
+		if (logger != null) {
+			logger.info(msg);
 		}
 	}
 }

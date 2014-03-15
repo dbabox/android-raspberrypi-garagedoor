@@ -95,12 +95,6 @@
             android:layout_width="fill_parent"
             android:layout_height="fill_parent"
             android:text="Fetch\nCertificate" />
-        <Button
-            android:id="@+id/log"
-            android:layout_weight="1"
-            android:layout_width="fill_parent"
-            android:layout_height="fill_parent"
-            android:text="View Log" />
     </LinearLayout>
     <TextView
         android:layout_width="wrap_content"
