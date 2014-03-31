@@ -1,0 +1,69 @@
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:          garagedoor
+# Required-Start:    $remote_fs $syslog $network
+# Required-Stop:     $remote_fs $syslog $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Garage door service daemon
+# Description:       Daemon to open and close the garage door as requested by
+#                    the Android smartphone app
+### END INIT INFO
+
+# Author: Gene Cash <gene.cash@gmail.com>
+
+DESC="Garage door service daemon"
+NAME="garagedoor"
+SCRIPTNAME=/etc/init.d/$NAME
+PIDFILE="/var/run/$NAME.pid"
+
+. /lib/lsb/init-functions
+
+d_start() {
+    pgrep -c -F $PIDFILE &> /dev/null
+    if [ "$?" -ne 0 ]; then
+        cd /var/run
+        twistd --pidfile $PIDFILE --python /usr/local/bin/garagedoor.tac --syslog > /dev/null
+    fi
+}
+
+d_stop() {
+    # STFU already!
+    kill `cat $PIDFILE 2> /dev/null` &> /dev/null
+}
+
+d_status() {
+    pgrep -c -F $PIDFILE &> /dev/null && { echo "$DESC is running"; exit 0; } || { echo "$DESC is not running"; exit 3; }
+}
+
+case "$1" in
+    start)
+        log_daemon_msg "Starting $DESC" "$NAME"
+        d_start
+        log_end_msg $?
+        ;;
+    stop)
+        log_daemon_msg "Stopping $DESC" "$NAME"
+        d_stop
+        log_end_msg $?
+        ;;
+    restart)
+        log_daemon_msg "Restarting $DESC" "$NAME"
+        d_stop
+        if [ "$?" -eq 0 ]; then
+                d_start
+                log_end_msg $?
+        else
+                log_end_msg 1
+        fi
+        ;;
+    status)
+        d_status
+        ;;
+    *)
+        echo "Usage: $SCRIPTNAME {start|stop|restart|status}" >&2
+        exit 3
+        ;;
+esac
+
+exit 0

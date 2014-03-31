@@ -29,7 +29,8 @@
       red if it's open. It's barberpole-grey if it's in-between, and barberpole-red if there is a problem. You can tap the button to open or close the door.</p>
     <p>The setup app uses UPnP and zeroconf to automatically determine as much information as it can, so the Android configuration is just a couple taps.</p>
     <p>The "garagedoor.tac" <a target="_blank" href="http://python.org/">Python</a> script running on the Raspberry Pi uses the
-      <a target="_blank" href="https://twistedmatrix.com/trac/">Twisted framework</a> for a robust multithreaded network server daemon.<p>
+      <a target="_blank" href="https://twistedmatrix.com/trac/">Twisted framework</a> for a robust multithreaded network server daemon.</p>
+    <p>The "garagedoor" init script will make sure it's started at boot, and properly shut down as necessary.</p>
     <h3>To quickly set up the Raspberry Pi:</h3>
     <p>(you'll need to do most of this as root)</p>
     <ol>
@@ -38,7 +39,10 @@
         <code>apt-get update</code></li>
       <li>Install the software packages you need by running:<br>
         <code>apt-get install avahi-daemon python-pifacedigitalio python-twisted</code></li>
-      <li>Copy the garagedoor.service file to /etc/avahi/services.</li>
+      <li>Copy the garagedoor.service file to /etc/avahi/services</li>
+      <li>Copy the garagedoor init script to /etc/init.d</li>
+      <li>Set up the garagedoor init script by running:<br>
+        <code>insserv garagedoor</code></li>
       <li>Create the script user by running:<br>
         <code>adduser --system --shell /bin/sh garagedoor</code></li>
       <li>Add the script user to the proper groups (so he can see the PiFace devices) by running:<br>
@@ -53,7 +57,7 @@
         <a target="_blank" href="https://learn.sparkfun.com/tutorials/using-pcduinos-wifi-dongle-with-the-pi">this one from SparkFun</a>. You will most probably
         need a powered USB hub for it, as most dongles are extremely power-hungry.</li>
       <li>Start the daemon with:<br>
-        <code>twistd --python /usr/local/bin/garagedoor.tac --syslog</code></li>
+        <code>service start garagedoor</code></li>
     </ol>
     <h3>Local network setup</h3>
     <ul>

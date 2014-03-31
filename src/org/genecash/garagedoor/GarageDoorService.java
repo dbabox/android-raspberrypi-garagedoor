@@ -62,9 +62,9 @@ public class GarageDoorService extends IntentService {
 	public BufferedReader buffRdr;
 
 	// our own logfile
-	public Logger logger = null;
+	public static final Logger logger = Logger.getLogger("logger");
 
-	// the usual weird Java thangs goin' on here
+	// the usual weird Java things goin' on here
 	public GarageDoorService() {
 		super("GarageDoorService");
 	}
@@ -73,13 +73,12 @@ public class GarageDoorService extends IntentService {
 	protected void onHandleIntent(Intent intent) {
 		// go through the pain of setting up our own logging
 		try {
-			logger = Logger.getLogger("logger");
 			Handler h = new FileHandler(getExternalFilesDir(null) + "/log%g%u.txt", 256 * 1024, 25);
 			h.setFormatter(new CustomFormatter());
 			logger.addHandler(h);
 			logger.setUseParentHandlers(false);
 		} catch (Exception e) {
-			Log.e("garagedoorservice", "something went to shit with the logging");
+			Log.e("garagedoorservice", "something went to shit with the logging\n" + Log.getStackTraceString(e));
 			return;
 		}
 
@@ -247,6 +246,11 @@ public class GarageDoorService extends IntentService {
 			wifiLock.release();
 		}
 
+		// close logging file handlers to get rid of "lck" turdlets
+		for (Handler h : logger.getHandlers()) {
+			h.close();
+		}
+
 		// must be done as the very last piece of code
 		if (cpuLock != null && cpuLock.isHeld()) {
 			cpuLock.release();
@@ -312,7 +316,6 @@ public class GarageDoorService extends IntentService {
 				}
 			} catch (Exception e) {
 				log("OpenDoor Exception: " + Log.getStackTraceString(e));
-				sleep(500);
 			}
 			log("OpenDoor done: " + done);
 			return 0;

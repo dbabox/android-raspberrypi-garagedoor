@@ -2,8 +2,8 @@
 <manifest
     xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.genecash.garagedoor"
-    android:versionCode="1394907544"
-    android:versionName="15-MAR-2014 02:19:04 PM">
+    android:versionCode="1395343594"
+    android:versionName="20-MAR-2014 03:26:34 PM">
     <uses-sdk
         android:minSdkVersion="17"
         android:targetSdkVersion="17" />
@@ -24,7 +24,8 @@
             android:name="GarageStatus"
             android:label="Garage Status"
             android:icon="@drawable/status_app"
-            android:launchMode="singleInstance">
+            android:launchMode="singleInstance"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -35,7 +36,8 @@
             android:label="Garage Settings"
             android:icon="@drawable/settings_app"
             android:windowSoftInputMode="stateHidden"
-            android:launchMode="singleInstance">
+            android:launchMode="singleInstance"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -63,10 +65,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        
-        <activity
-            android:label="View Log"
-            android:name="ViewLog" android:icon="@drawable/settings_app"></activity>
         <service
             android:name="GarageDoorService"
             android:exported="false" />

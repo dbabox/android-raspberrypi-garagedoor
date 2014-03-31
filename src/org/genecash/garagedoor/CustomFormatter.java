@@ -8,16 +8,9 @@ public class CustomFormatter extends Formatter {
 
 	@Override
 	public String format(LogRecord record) {
-		StringBuffer sb = new StringBuffer();
 
 		// just the date and the message
 		Date date = new Date(record.getMillis());
-		sb.append(date.toString());
-		sb.append(" ");
-		sb.append(formatMessage(record));
-		sb.append("\n");
-
-		return sb.toString();
+		return date.toString() + " " + formatMessage(record) + "\n";
 	}
-
 }
