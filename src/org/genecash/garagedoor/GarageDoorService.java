@@ -1,10 +1,11 @@
 package org.genecash.garagedoor;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.net.Socket;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.logging.FileHandler;
 import java.util.logging.Handler;
@@ -16,6 +17,7 @@ import javax.net.ssl.SSLSocketFactory;
 import android.app.IntentService;
 import android.app.Notification;
 import android.app.Notification.Builder;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -33,6 +35,7 @@ import android.util.Log;
 
 public class GarageDoorService extends IntentService {
 	private static final int ONGOING_NOTIFICATION_ID = 1;
+	private static final int SECONDS = 1000;
 
 	private BroadcastReceiver broadcastReceiver = null;
 	private WifiManager wifiManager;
@@ -40,6 +43,7 @@ public class GarageDoorService extends IntentService {
 	private WakeLock cpuLock;
 
 	// notifications
+	private NotificationManager notifyManager;
 	private Notification notification;
 	private Builder notifyBuilder;
 	private String notificationAction = "org.genecash.garagedoor.exit";
@@ -58,8 +62,8 @@ public class GarageDoorService extends IntentService {
 
 	private boolean done = true;
 	private SSLSocketFactory sslSocketFactory;
-	public SSLSocket sock;
-	public BufferedReader buffRdr;
+	private Socket fast_sock;
+	private String key;
 
 	// our own logfile
 	public static final Logger logger = Logger.getLogger("logger");
@@ -113,6 +117,7 @@ public class GarageDoorService extends IntentService {
 								PendingIntent.getBroadcast(this, 0, new Intent(notificationAction), PendingIntent.FLAG_UPDATE_CURRENT));
 		notification = notifyBuilder.build();
 		startForeground(ONGOING_NOTIFICATION_ID, notification);
+		notifyManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
 		// initialize SSL
 		sslSocketFactory = Utilities.initSSL(this);
@@ -192,6 +197,8 @@ public class GarageDoorService extends IntentService {
 
 		// connect to Raspberry Pi over mobile data
 		doTask(new Connect());
+		notifyBuilder.setContentText("Connected");
+		notifyManager.notify(ONGOING_NOTIFICATION_ID, notifyBuilder.build());
 
 		log("start loop");
 		// busy work
@@ -199,6 +206,8 @@ public class GarageDoorService extends IntentService {
 		while (!done) {
 			if (ctr++ > 20) {
 				doTask(new Ping());
+				notifyBuilder.setContentText("Pinging");
+				notifyManager.notify(ONGOING_NOTIFICATION_ID, notifyBuilder.build());
 				ctr = 0;
 			}
 			sleep(500);
@@ -264,33 +273,82 @@ public class GarageDoorService extends IntentService {
 		try {
 			Thread.sleep(time);
 		} catch (InterruptedException e) {
+			log("sleep exception: " + Log.getStackTraceString(e));
 		}
 	}
 
-	// SSL connection takes a very long time (3 or 4 seconds) so we do it at startup
+	// open cleartext socket with standardized options
+	public void openSocket() {
+		BufferedReader buffRdr;
+		String response;
+
+		while (true) {
+			log("opening cleartext socket");
+			try {
+				fast_sock = new Socket(host, port + 1);
+				fast_sock.setSoTimeout(3 * SECONDS);
+				// apparently this option doesn't do shit because we still need to do our own pinging
+				fast_sock.setKeepAlive(true);
+				fast_sock.setTcpNoDelay(true);
+				buffRdr = new BufferedReader(new InputStreamReader(fast_sock.getInputStream(), "ASCII"));
+				response = buffRdr.readLine();
+				if (response.equals("GARAGEDOOR")) {
+					break;
+				}
+				log("invalid cleartext response: " + response);
+			} catch (Exception e) {
+				log("openSocket exception: " + e);
+			}
+		}
+		log("cleartext socket open");
+	}
+
+	// Read key over secure SSL connection at startup
 	class Connect extends AsyncTask<Void, String, Integer> {
 		@Override
 		protected Integer doInBackground(Void... params) {
-			boolean connected = false;
+			SSLSocket secure_sock;
+			BufferedReader buffRdr;
+			String response;
+
 			log("Connect doInBackground");
 
 			// turn on cell data if necessary
 			if (!getDataEnabled()) {
 				setDataEnabled(true);
-				sleep(2 * 1000);
+				sleep(2 * SECONDS);
 			}
-			while (!connected && !done) {
+
+			while (true) {
 				try {
 					log("connecting");
-					sock = (SSLSocket) sslSocketFactory.createSocket(host, port);
-					sock.setSoTimeout(2000);
-					buffRdr = new BufferedReader(new InputStreamReader(sock.getInputStream(), "ASCII"));
-					connected = buffRdr.readLine().equals("GARAGEDOOR");
+					// open secured socket
+					secure_sock = (SSLSocket) sslSocketFactory.createSocket(host, port);
+					buffRdr = new BufferedReader(new InputStreamReader(secure_sock.getInputStream(), "ASCII"));
+					response = buffRdr.readLine();
+					if (response.equals("GARAGEDOOR SECURE")) {
+						log("secure socket open");
+						// fetch key
+						secure_sock.getOutputStream().write("KEY\n".getBytes());
+						key = buffRdr.readLine() + "\n";
+						response = buffRdr.readLine();
+						if (response.equals("KEY SENT")) {
+							log("key received");
+							secure_sock.close();
+							break;
+						} else {
+							log("key failed: " + response);
+						}
+					} else {
+						log("invalid secure response: " + response);
+					}
 				} catch (Exception e) {
 					// we will normally have a couple exceptions before the network comes completely up
-					sleep(2 * 1000);
+					log("Connect exception: " + e);
+					sleep(2 * SECONDS);
 				}
 			}
+			openSocket();
 			log("Connect done");
 			return 0;
 		}
@@ -300,24 +358,35 @@ public class GarageDoorService extends IntentService {
 	class OpenDoor extends AsyncTask<Void, String, Integer> {
 		@Override
 		protected Integer doInBackground(Void... params) {
-			log("OpenDoor doInBackground");
-			String cmd = "OPEN\n";
-			String s;
+			BufferedReader buffRdr;
+			String response;
 
-			try {
-				log("opening");
-				sock.getOutputStream().write(cmd.getBytes());
-				// ignore extraneous ping responses
-				while ((s = buffRdr.readLine()).equals("PONG"))
-					log("pong");
-				done = s.equals("DONE");
-				if (!done) {
-					log("got: " + s);
+			log("OpenDoor doInBackground");
+
+			while (true) {
+				try {
+					log("opening");
+					fast_sock.getOutputStream().write(("OPEN " + key).getBytes());
+					log("command and key sent");
+					buffRdr = new BufferedReader(new InputStreamReader(fast_sock.getInputStream(), "ASCII"));
+					// ignore extraneous ping responses
+					while ((response = buffRdr.readLine()).equals("PONG"))
+						log("pong");
+					if (response.equals("DONE")) {
+						log("door opened");
+						done = true;
+						break;
+					} else {
+						log("invalid OpenDoor response: " + response);
+					}
+				} catch (SocketException e) {
+					log("OpenDoor SocketException: " + Log.getStackTraceString(e));
+					openSocket();
+				} catch (Exception e) {
+					log("OpenDoor exception: " + Log.getStackTraceString(e));
 				}
-			} catch (Exception e) {
-				log("OpenDoor Exception: " + Log.getStackTraceString(e));
 			}
-			log("OpenDoor done: " + done);
+			log("OpenDoor done");
 			return 0;
 		}
 	}
@@ -326,27 +395,23 @@ public class GarageDoorService extends IntentService {
 	class Ping extends AsyncTask<Void, String, Integer> {
 		@Override
 		protected Integer doInBackground(Void... params) {
-			boolean connected = false;
 			log("Ping doInBackground");
-			String cmd = "PING\n";
 
-			while (!connected && !done) {
-				try {
-					log("pinging");
-					sock.getOutputStream().write(cmd.getBytes());
-					buffRdr.readLine();
-					connected = true;
-				} catch (SocketTimeoutException e) {
-					log("Ping timeout");
-				} catch (Exception e) {
-					log("Ping Exception: " + Log.getStackTraceString(e));
-					sleep(500);
-					try {
-						sock.close();
-					} catch (IOException e1) {
-					}
-					doTask(new Connect());
+			try {
+				log("pinging");
+				BufferedReader buffRdr = new BufferedReader(new InputStreamReader(fast_sock.getInputStream(), "ASCII"));
+				fast_sock.getOutputStream().write("PING\n".getBytes());
+				String response = buffRdr.readLine();
+				if (!response.equals("PONG")) {
+					log("invalid Ping response: " + response);
 				}
+			} catch (SocketTimeoutException e) {
+				log("Ping timeout");
+			} catch (Exception e) {
+				log("Ping exception: " + Log.getStackTraceString(e));
+				// reopen socket
+				log("Ping reopen");
+				openSocket();
 			}
 			log("Ping done");
 			return 0;
@@ -359,6 +424,7 @@ public class GarageDoorService extends IntentService {
 		try {
 			return (Boolean) getMobileDataEnabledMethod.invoke(iConnectivityManager);
 		} catch (Exception e) {
+			log("getDataEnabled exception: " + Log.getStackTraceString(e));
 		}
 		return false;
 	}
@@ -369,14 +435,13 @@ public class GarageDoorService extends IntentService {
 		try {
 			setMobileDataEnabledMethod.invoke(iConnectivityManager, value);
 		} catch (Exception e) {
+			log("setDataEnabled exception: " + Log.getStackTraceString(e));
 		}
 	}
 
 	// log to our own file so that messages don't get lost
 	public void log(String msg) {
 		Log.i("garagedoorservice", msg);
-		if (logger != null) {
-			logger.info(msg);
-		}
+		logger.info(msg);
 	}
 }

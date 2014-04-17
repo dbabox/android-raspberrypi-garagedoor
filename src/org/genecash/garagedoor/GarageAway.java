@@ -2,9 +2,7 @@ package org.genecash.garagedoor;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-
-import javax.net.ssl.SSLSocket;
-import javax.net.ssl.SSLSocketFactory;
+import java.net.Socket;
 
 import android.app.Activity;
 import android.content.Context;
@@ -17,7 +15,6 @@ public class GarageAway extends Activity {
 	private Context ctx = this;
 	private String host;
 	private int port;
-	private SSLSocketFactory sslSocketFactory;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -28,9 +25,6 @@ public class GarageAway extends Activity {
 		host = sSettings.getString(GarageSettings.PREFS_LOCAL_IP, "");
 		port = sSettings.getInt(GarageSettings.PREFS_LOCAL_PORT, 0);
 
-		// initialize SSL
-		sslSocketFactory = Utilities.initSSL(this);
-
 		new SetAway().execute();
 		finish();
 	}
@@ -39,14 +33,12 @@ public class GarageAway extends Activity {
 	class SetAway extends AsyncTask<Void, String, Void> {
 		@Override
 		protected Void doInBackground(Void... params) {
-			String cmd = "AWAY\n";
 			try {
-				SSLSocket sock = (SSLSocket) sslSocketFactory.createSocket(host, port);
-				sock.setSoTimeout(2000);
-				BufferedReader br = new BufferedReader(new InputStreamReader(sock.getInputStream(), "ASCII"));
-				if (br.readLine().equals("GARAGEDOOR")) {
-					sock.getOutputStream().write(cmd.getBytes());
-					String status = br.readLine();
+				Socket sock = new Socket(host, port + 1);
+				BufferedReader buffRdr = new BufferedReader(new InputStreamReader(sock.getInputStream(), "ASCII"));
+				if (buffRdr.readLine().equals("GARAGEDOOR")) {
+					sock.getOutputStream().write("AWAY\n".getBytes());
+					String status = buffRdr.readLine();
 					if (status.equals("WAITING")) {
 						publishProgress("Away function ready");
 					}

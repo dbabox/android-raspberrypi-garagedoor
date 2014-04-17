@@ -123,6 +123,32 @@
         </code>
       </li>
     </ul>
+    <h3>Ideal protocol flow for opening the garage door</h3>
+    <table border="1" cellspacing="0">
+      <tr align="center"><td><b>Phone</b></td><td><b>Raspberry Pi</b></td></tr>
+      <tr align="center"><td>-- connect (SSL) --</td><td>&nbsp;</td></tr>
+      <tr align="center"><td>&nbsp;</td><td>GARAGEDOOR SECURE</td></tr>
+      <tr align="center"><td>KEY</td><td>&nbsp;</td></tr>
+      <tr align="center"><td>&nbsp;</td><td>64-byte hex-encoded key</td></tr>
+      <tr align="center"><td>&nbsp;</td><td>KEY SENT</td></tr>
+      <tr align="center"><td>-- disconnect --</td><td>&nbsp;</td></tr>
+      <tr align="center"><td>-- connect --</td><td>&nbsp;</td></tr>
+      <tr align="center"><td>&nbsp;</td><td>GARAGEDOOR</td></tr>
+      <tr align="center"><td colspan="2">-- time passes --</td></tr>
+      <tr align="center"><td>PING</td><td>&nbsp;</td></tr>
+      <tr align="center"><td>&nbsp;</td><td>PONG</td></tr>
+      <tr align="center"><td colspan="2">-- time passes --</td></tr>
+      <tr align="center"><td>PING</td><td>&nbsp;</td></tr>
+      <tr align="center"><td>&nbsp;</td><td>PONG</td></tr>
+      <tr align="center"><td colspan="2">-- repeat as necessary --</td></tr>
+      <tr align="center"><td>OPEN + key</td><td>&nbsp;</td></tr>
+      <tr align="center"><td>&nbsp;</td><td>-- checks key --</td></tr>
+      <tr align="center"><td>&nbsp;</td><td>-- open door --</td></tr>
+      <tr align="center"><td>&nbsp;</td><td>DONE</td></tr>
+      <tr align="center"><td>-- disconnect --</td><td>-- disconnect --</td></tr>
+    </table>
+    <p>I switch to a standard socket because trying to maintain a SSL connection for a long time seems to run into a lot of weird errors, and reconnecting takes
+      several seconds, so error recovery is expensive. A standard socket seems to be more robust and a reconnection takes a fraction of a second.</p>
     <h3>Credits</h3>
     <p>The setup app uses the <a target="_blank" href="http://sourceforge.net/projects/upnplibmobile">UPNPLib-mobile library</a> created by "suggam", which in
       turn is a port of the abandoned UPNPLib project developed by "sbbi". Grateful thanks to whoever these guys are.</p>
@@ -149,10 +175,12 @@
       the problem. They have no excuse for not putting this information out there.</p>
     <p>This stuff is difficult, and Android developers need help.</p>
     <h3>History</h3>
-    <p>I originally started off with a very simple Python script run by inetd, about 09-JAN-2014. I realized I really needed SSL authentication, so I used
-      stunnel as an inetd wrapper, then as a full daemon. This is how I got SSL client authentication working. Performance was horrible due to the SSL
-      initialization time, so I rewrote it as a standalone daemon using the Twisted framework. The first "production" version was 03-FEB-2014. I had a version I
-      was satisfied with on 19-FEB-2014.</p>
+    <p>I originally started off with a very simple Python script run by inetd, about 09-JAN-2014.</p>
+    <p>I realized I really needed SSL authentication, so I used stunnel as an inetd wrapper, then as a full daemon. This is how I got SSL client authentication
+      working. Performance was horrible due to the SSL initialization time, so I rewrote it as a standalone daemon using the Twisted framework.</p>
+    <p>The first "production" version was 03-FEB-2014.</p>
+    <p>I had a version I was satisfied with on 19-FEB-2014.</p>
+    <p>On 08-APR-2014, I redesigned the protocol with the SSL/standard socket split, because I got tired of a new weird SSL error every other day.</p>
     <h3>Other notes</h3>
     <p>I originally intended to use an Arduino, but a wi-fi shield was $85! The other killer factor was that all the I/O shields were kits and I'm really crap
       at soldering.</p>

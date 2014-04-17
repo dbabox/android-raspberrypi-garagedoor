@@ -2,6 +2,7 @@ package org.genecash.garagedoor;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.net.Socket;
 
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
@@ -61,22 +62,16 @@ public class GarageStatus extends Activity {
 		super.onPause();
 	}
 
-	@Override
-	protected void onDestroy() {
-		super.onDestroy();
-	}
-
 	// get a string from the network in a separate thread
 	class GetStatus extends AsyncTask<Void, String, Void> {
 		@Override
 		protected Void doInBackground(Void... params) {
-			String cmd = "STATUS\n";
 			try {
-				SSLSocket sock = (SSLSocket) sslSocketFactory.createSocket(host, port);
+				Socket sock = new Socket(host, port + 1);
 				sock.setSoTimeout(2000);
 				BufferedReader br = new BufferedReader(new InputStreamReader(sock.getInputStream(), "ASCII"));
 				if (br.readLine().equals("GARAGEDOOR")) {
-					sock.getOutputStream().write(cmd.getBytes());
+					sock.getOutputStream().write("STATUS\n".getBytes());
 					sock.setSoTimeout(30000);
 					String status = "";
 					// read status changes until we exit
@@ -123,13 +118,12 @@ public class GarageStatus extends Activity {
 	class ToggleDoor extends AsyncTask<Void, String, Void> {
 		@Override
 		protected Void doInBackground(Void... params) {
-			String cmd = "TOGGLE\n";
 			try {
 				SSLSocket sock = (SSLSocket) sslSocketFactory.createSocket(host, port);
 				sock.setSoTimeout(2000);
 				BufferedReader br = new BufferedReader(new InputStreamReader(sock.getInputStream(), "ASCII"));
-				if (br.readLine().equals("GARAGEDOOR")) {
-					sock.getOutputStream().write(cmd.getBytes());
+				if (br.readLine().equals("GARAGEDOOR SECURE")) {
+					sock.getOutputStream().write("TOGGLE\n".getBytes());
 					br.readLine();
 				}
 				sock.close();
